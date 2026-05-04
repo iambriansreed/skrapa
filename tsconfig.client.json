@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ESNext",
+        "jsx": "react",
+        "jsxFactory": "jsx",
+        "jsxFragmentFactory": "Fragment",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "outDir": "./.tmp",
+        "rootDir": "./",
+        "lib": ["DOM", "ES2020"],
+        "moduleResolution": "bundler"
+    },
+    "include": ["./src/client.ts"],
+    "exclude": ["node_modules", "dist"]
+}

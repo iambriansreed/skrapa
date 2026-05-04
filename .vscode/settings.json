@@ -1,0 +1,8 @@
+{
+    "eslint.useFlatConfig": true,
+    "eslint.options": {
+        "flags": ["unstable_ts_config"]
+    },
+    "eslint.run": "onType",
+    "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"]
+}

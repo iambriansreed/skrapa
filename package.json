@@ -3,9 +3,8 @@
     "version": "1.0.0",
     "main": "index.js",
     "scripts": {
-        "dev": "npm run build && npm run server",
-        "server": "tsx .sys/server.ts",
-        "build": "tsx .sys/build.ts",
+        "dev": "tsx scratch.ts dev",
+        "build": "tsx scratch.ts build",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",
         "lint:css": "stylelint src/**/*.css",
@@ -14,18 +13,10 @@
     "author": "",
     "license": "ISC",
     "devDependencies": {
-        "@eslint/eslintrc": "^1.2.0",
-        "@eslint/js": "^9.0.0",
-        "@typescript-eslint/eslint-plugin": "^8.59.1",
-        "@typescript-eslint/parser": "^8.59.1",
-        "csstype": "^3.1.3",
-        "eslint": "^9.39.4",
-        "eslint-plugin-react": "^7.37.5",
-        "globals": "^17.6.0",
-        "prettier": "^3.2.5",
+        "@types/node": "^25.6.0",
+        "csstype": "^3.2.3",
         "tsx": "^4.21.0",
-        "typescript": "^6.0.3",
-        "typescript-eslint": "^8.59.1"
+        "typescript": "^6.0.3"
     },
     "keywords": [],
     "description": ""

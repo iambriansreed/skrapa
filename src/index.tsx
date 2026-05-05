@@ -1,29 +1,56 @@
-import { Parent } from './comps/parent';
+import { Features } from './features';
 
 export function Root() {
     return (
         <html lang="en">
             <head>
                 <meta charset="UTF-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>My App</title>
+                <meta
+                    name="viewport"
+                    content="width=device-width, initial-scale=1.0"
+                />
+                <title>Scratch</title>
             </head>
             <body>
-                <h1>Welcome to Scratch</h1>
-                <svg src="scratch" />
-                <main
-                    data-number={123}
-                    data-string="hello"
-                    data-boolean={true}
-                    data-object={{ key: 'value' }}
-                    data-array={[1, 2, 3]}
-                >
-                    <Parent>
-                        {/* no need for a fragment here */}
-                        <h1>Hello, world!</h1>
-                        <p>This is a minimal React-like setup with HMR.</p>
-                    </Parent>
+                <header>
+                    <img
+                        src="scratch.svg"
+                        alt="Scratch Logo"
+                        width="64"
+                        height="64"
+                    />
+                    <h1>Scratch.tsx</h1>
+                    <p class="tagline">
+                        A minimal JSX build tool for rapid prototyping
+                    </p>
+                </header>
+                <main>
+                    <Features />
+                    <section class="getting-started">
+                        <h2>Get Started</h2>
+
+                        <p>Download the script</p>
+                        <pre>
+                            <code>
+                                curl -o scratch.ts
+                                https://iambrian.com/scratch/scratch.ts
+                            </code>
+                        </pre>
+
+                        <p>Initialize your project</p>
+                        <pre>
+                            <code>npx tsx scratch.ts init</code>
+                        </pre>
+
+                        <p>Start the dev server</p>
+                        <pre>
+                            <code>tsx scratch.ts dev</code>
+                        </pre>
+                    </section>
                 </main>
+                <footer>
+                    <p>Built with Scratch</p>
+                </footer>
             </body>
         </html>
     );

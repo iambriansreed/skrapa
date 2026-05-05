@@ -21,6 +21,7 @@ export default defineConfig([
             'react/react-in-jsx-scope': 'off',
             'react/jsx-uses-react': 'off',
             'react/void-dom-elements-no-children': 'error',
+            'react/jsx-key': 'off',
         },
     },
 ]);

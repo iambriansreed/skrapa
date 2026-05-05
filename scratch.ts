@@ -18,6 +18,9 @@ import crypto from 'crypto';
 import type { Socket } from 'net';
 import type { Properties as CSSProperties } from 'csstype';
 
+function exe(cmd: string) {
+    execSync(cmd, { stdio: 'inherit' });
+}
 interface Config {
     /**
      *
@@ -77,11 +80,7 @@ declare global {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     type Tag = string | Function;
 
-    function jsx(
-        tag: Tag,
-        props: Props | undefined,
-        ...children: unknown[]
-    ): string;
+    function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]): string;
 
     var Fragment: 'Fragment';
 
@@ -142,28 +141,18 @@ function initConfig() {
 
     let workingConfig: Config = { ...DEFAULT_CONFIG };
     if (fs.existsSync(configPath)) {
-        const fileConfig = JSON.parse(
-            fs.readFileSync(configPath, 'utf-8')
-        ) as Config;
+        const fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Config;
         workingConfig = { ...DEFAULT_CONFIG, ...fileConfig };
-        log.success(`Loaded config from: ${configPath}`);
+        log.success(`Loaded config from: ${path.relative(ROOT_DIR, configPath)}`);
     } else {
-        log.gray(
-            `No config file found, using defaults: ${JSON.stringify(workingConfig, null, 2)}`
-        );
+        log.gray(`No config file found, using defaults: ${JSON.stringify(workingConfig, null, 2)}`);
     }
 
-    const input = workingConfig.input
-        ? path.resolve(ROOT_DIR, workingConfig.input)
-        : '';
+    const input = workingConfig.input ? path.resolve(ROOT_DIR, workingConfig.input) : '';
 
-    const output = workingConfig.output
-        ? path.resolve(ROOT_DIR, workingConfig.output)
-        : '';
+    const output = workingConfig.output ? path.resolve(ROOT_DIR, workingConfig.output) : '';
 
-    const assets = workingConfig.assets
-        ? path.resolve(ROOT_DIR, workingConfig.assets)
-        : '';
+    const assets = workingConfig.assets ? path.resolve(ROOT_DIR, workingConfig.assets) : '';
 
     if (!fs.existsSync(input)) {
         log.error(`Error: input directory does not exist at ${input}`);
@@ -182,9 +171,7 @@ function initConfig() {
             process.exit(1);
         }
 
-        log.gray(
-            `Assets directory (${assets}) does not exist. Continuing without copying assets.`
-        );
+        log.gray(`Assets directory (${assets}) does not exist. Continuing without copying assets.`);
     }
 
     return { directory: { input, output, assets }, config: workingConfig };
@@ -200,11 +187,7 @@ function styleToCss(style: CSSProperties | undefined): string {
         .join(';');
 }
 
-function jsx(
-    tag: Tag,
-    props: Props | undefined,
-    ...children: unknown[]
-): string {
+function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]): string {
     if (typeof tag === 'function') {
         return tag({ ...props, children }, ...children);
     }
@@ -233,13 +216,7 @@ function jsx(
 
     const childStr = children
         .flat()
-        .map((c) =>
-            typeof c === 'string'
-                ? c
-                : c !== null && c !== undefined && c !== false
-                  ? String(c)
-                  : ''
-        )
+        .map((c) => (typeof c === 'string' ? c : c !== null && c !== undefined && c !== false ? String(c) : ''))
         .join('');
 
     if (tag === 'Fragment' || tag === '') return childStr;
@@ -247,9 +224,7 @@ function jsx(
     const tagName = String(tag).toLowerCase();
     if (VOID_ELEMENTS.has(tagName)) {
         if (childStr !== '') {
-            throw new Error(
-                `Invalid JSX: void element <${tag}> cannot have children.`
-            );
+            throw new Error(`Invalid JSX: void element <${tag}> cannot have children.`);
         }
         return `<${tag}${attrs} />`;
     }
@@ -261,33 +236,20 @@ function jsx(
 // BUILD
 // ============================================================================
 
-export async function build() {
-    const { directory, config } = initConfig();
+export async function build(cfg?: ReturnType<typeof initConfig>) {
+    const { directory, config } = cfg ?? initConfig();
 
     // Dynamically import the Root function from inputDir/index
     const { Root } = await import(path.join(directory.input, 'index'));
 
     if (!process.argv.includes('skip-assets')) {
-        execSync(
-            `rm -rf ${directory.output} ${tmp} && mkdir -p ${directory.output} ${tmp}`,
-            {
-                stdio: 'inherit',
-            }
-        );
+        exe(`rm -rf ${directory.output} ${tmp} && mkdir -p ${directory.output} ${tmp}`);
     }
 
-    execSync(`tsc -p ${path.join(ROOT_DIR, 'tsconfig.client.json')}`, {
-        stdio: 'inherit',
-    });
+    exe(`tsc -p ${path.join(ROOT_DIR, 'tsconfig.client.json')}`);
 
-    const clientJs = fs.readFileSync(
-        path.join(tmp, config.input, 'client.js'),
-        'utf-8'
-    );
-    const css = fs.readFileSync(
-        path.join(directory.input, 'style.css'),
-        'utf-8'
-    );
+    const clientJs = fs.readFileSync(path.join(tmp, config.input, 'client.js'), 'utf-8');
+    const css = fs.readFileSync(path.join(directory.input, 'style.css'), 'utf-8');
 
     const html = Root()
         .replace('</body>', `<script>${clientJs}</script></body>`)
@@ -297,14 +259,12 @@ export async function build() {
 
     if (!process.argv.includes('skip-assets') && directory.assets) {
         if (fs.existsSync(directory.assets)) {
-            execSync(`cp ${directory.assets}/* ${directory.output}/`, {
-                stdio: 'inherit',
-            });
+            exe(`cp ${directory.assets}/* ${directory.output}/`);
         }
     }
 
     // Clean up temporary build directory
-    execSync(`rm -rf ${tmp}`);
+    exe(`rm -rf ${tmp}`);
 }
 
 // ============================================================================
@@ -312,10 +272,13 @@ export async function build() {
 // ============================================================================
 
 export async function dev() {
-    const { directory, config } = initConfig();
+    const cfg = initConfig();
+    const { directory, config } = cfg;
+
+    log.info('Starting dev server...');
 
     // Initial build
-    await build();
+    await build(cfg);
 
     const MIME_TYPES: Record<string, string> = {
         '.html': 'text/html',
@@ -348,10 +311,7 @@ export async function dev() {
 
     const server = http.createServer((req, res) => {
         log.info(`${req.method} ${req.url}`);
-        const filePath = path.join(
-            directory.output,
-            req.url === '/' ? 'index.html' : req.url!
-        );
+        const filePath = path.join(directory.output, req.url === '/' ? 'index.html' : req.url!);
         const extname = String(path.extname(filePath)).toLowerCase();
         const contentType = MIME_TYPES[extname] || 'application/octet-stream';
 
@@ -377,12 +337,7 @@ export async function dev() {
               };
             </script>
           `;
-                    res.end(
-                        content
-                            .toString()
-                            .replace('</body>', `${hmrScript}</body>`),
-                        'utf-8'
-                    );
+                    res.end(content.toString().replace('</body>', `${hmrScript}</body>`), 'utf-8');
                 } else {
                     res.end(content, 'utf-8');
                 }
@@ -434,13 +389,9 @@ export async function dev() {
     if (fs.existsSync(directory.assets)) {
         fs.watch(directory.assets, { recursive: true }, (_event, filename) => {
             if (!filename) return;
-            execSync(
-                `cp ${path.join(directory.assets, filename)} ${path.join(directory.output, filename)}`
-            );
+            exe(`cp ${path.join(directory.assets, filename)} ${path.join(directory.output, filename)}`);
             broadcast('reload');
-            log.success(
-                `${directory.assets}/${filename} → ${directory.output}/${filename}`
-            );
+            log.success(`${directory.assets}/${filename} → ${directory.output}/${filename}`);
         });
     }
 
@@ -448,7 +399,7 @@ export async function dev() {
     log.success(
         `\n⚡ ${color.cyan}http://localhost:${config.port}${color.reset}  ${color.gray}⌘ ⌃C to stop${color.reset}\n`
     );
-    execSync(`open http://localhost:${config.port}`);
+    exe(`open http://localhost:${config.port}`);
 }
 
 // ============================================================================
@@ -459,34 +410,46 @@ export async function init() {
     const root = (...paths: string[]) => path.join(ROOT_DIR, ...paths);
     fs.mkdirSync(root('src'), { recursive: true });
     fs.mkdirSync(root('assets'), { recursive: true });
+    fs.mkdirSync(root('.github/workflows'), { recursive: true });
 
     const FILE_CREATION_MAP = {
-        'src/client.ts': 'console.log("Hello from Scratch!")',
+        'src/client.ts':
+            "document.querySelectorAll('pre').forEach((pre) => {\n    const code = pre.querySelector('code:not([data-no-copy])');\n    if (!code) return;\n\n    const btn = document.createElement('button');\n    btn.className = 'copy-btn';\n    btn.textContent = 'Copy';\n    pre.appendChild(btn);\n\n    btn.addEventListener('click', () => {\n        navigator.clipboard.writeText(code.textContent ?? '').then(() => {\n            btn.textContent = 'Copied!';\n            setTimeout(() => (btn.textContent = 'Copy'), 2000);\n        });\n    });\n});\n",
         'src/features.tsx':
-            "const features = [ { title: 'Low Learning Curve', desc: 'Write JSX you already know — no new APIs to memorize.', }, { title: 'Few Dependencies', desc: 'Ships lean and stays lean. No bloat, no surprises.', }, { title: 'Fast Hot Reload', desc: 'Instant feedback in the browser as you save.', }, { title: 'TypeScript First', desc: 'Full type safety from day one, no config required.', }, { title: 'Static Output', desc: 'Builds to a single index.html with embedded CSS and JS.', }, { title: 'Asset Pipeline', desc: 'Drop files in the assets folder and they just work.', }, { title: 'Zero Config', desc: 'Sensible defaults get you running in seconds.', }, { title: 'Dev Server', desc: 'Local server with live reload via WebSocket on port 8080.', }, ]; export function Features() { return ( <section class=\"features\"> <h2>Features</h2> <ul class=\"feature-grid\"> {features.map((f) => ( <li class=\"feature-card\"> <strong>{f.title}</strong> <p>{f.desc}</p> </li> ))} </ul> </section> ); }",
+            "const features = [\n    {\n        title: 'TypeScript First<br /><i>TypeScript Only</i>',\n        desc: 'Full type safety from day one for TSX and client-side code.',\n    },\n    { title: 'Live Reload<br /><i>for Development</i>', desc: 'Instant feedback in the browser as you save.' },\n    {\n        title: 'Static Output<br /><i>for Production</i>',\n        desc: 'Builds to a single index.html with embedded CSS and JS.',\n    },\n    {\n        title: 'Devops Headaches<br /><i>Solved</i>',\n        desc: 'No setup required. Drop in scratch.ts and go — sane defaults handle the rest.',\n    },\n];\nexport function Features() {\n    return (\n        <section class=\"features\">\n            <h2>Features</h2>\n            <ul class=\"feature-grid\">\n                {' '}\n                {features.map((f) => (\n                    <li class=\"feature-card\">\n                        <strong>{f.title}</strong>\n                        <p>{f.desc}</p>\n                    </li>\n                ))}{' '}\n            </ul>\n        </section>\n    );\n}\n",
         'src/index.tsx':
-            'import { Features } from \'./features\'; export function Root() { return ( <html lang="en"> <head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <title>Scratch</title> </head> <body> <header> <img src="scratch.svg" alt="Scratch Logo" width="64" height="64" /> <h1>Scratch</h1> <p class="tagline"> A minimal JSX build tool for rapid prototyping </p> </header> <main> <Features /> <section class="getting-started"> <h2>Get Started</h2> <pre> <code>tsx scratch.ts init</code> </pre> </section> </main> <footer> <p>Built with Scratch</p> </footer> </body> </html> ); }',
+            'import { Features } from \'./features\';\nexport function Root() {\n    return (\n        <html lang="en">\n            <head>\n                <meta charset="UTF-8" />\n                <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n                <title>Scratch.ts</title>\n            </head>\n            <body>\n                <header>\n                    <img src="scratch.svg" alt="Scratch Logo" width="64" height="64" />\n                    <h1>Scratch.ts</h1>\n                    <p class="tagline"> A minimal JSX build tool for rapid prototyping </p>\n                </header>\n                <main>\n                    <Features />\n                    <section class="getting-started">\n                        <h2>Get Started</h2>\n                        <p>Download the script</p>\n                        <pre>\n                            <code>curl -o scratch.ts https://example.com/scratch.ts</code>\n                        </pre>\n                        <br />\n                        <p>Initialize your project</p>\n                        <pre>\n                            <code>npx tsx scratch.ts init</code>\n                        </pre>\n                        <br />\n                        <p>Start the dev server</p>\n                        <pre>\n                            <code>tsx scratch.ts dev</code>\n                        </pre>\n                    </section>\n                </main>\n                <footer>\n                    <div>\n                        <p>\n                            Built with{\' \'}\n                            <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">\n                                Scratch.ts\n                            </a>\n                        </p>\n                        <p>\n                            Made with ♥ by{\' \'}\n                            <a href="https://iambrian.com" target="_blank" rel="noopener">\n                                iambrian.com\n                            </a>\n                        </p>\n                    </div>\n                </footer>\n            </body>\n        </html>\n    );\n}\n',
         'src/style.css':
-            '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}html{-webkit-text-size-adjust:100%;tab-size:4;}img,picture,video,canvas,svg{display:block;max-width:100%;}input,button,textarea,select{font:inherit;}p,h1,h2,h3,h4,h5,h6{overflow-wrap:break-word;}a{color:inherit;}:root{--bg:#0f0f11;--surface:#1a1a1f;--border:#2a2a32;--text:#e8e8f0;--muted:#888899;--accent:#7c6af7;}body{font-family:system-ui,-apple-system,sans-serif;font-size:1rem;line-height:1.6;color:var(--text);background:var(--bg);min-height:100dvh;display:flex;flex-direction:column;}header{text-align:center;padding:5rem 2rem 3rem;display:flex;flex-direction:column;align-items:center;gap:1rem;}header img{width:64px;height:64px;color:var(--accent);filter:invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);}h1{font-size:3rem;font-weight:700;letter-spacing:-0.03em;line-height:1.1;}.tagline{font-size:1.15rem;color:var(--muted);max-width:38ch;}main{flex:1;width:100%;max-width:860px;margin:0 auto;padding:0 2rem 4rem;display:flex;flex-direction:column;gap:4rem;}h2{font-size:1.25rem;font-weight:600;margin-bottom:1.25rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-size:0.8rem;}.feature-grid{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;}.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.4rem;}.feature-card strong{font-size:1rem;font-weight:600;}.feature-card p{font-size:0.9rem;color:var(--muted);line-height:1.5;}.getting-started pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.5rem;font-family:ui-monospace,monospace;font-size:0.95rem;color:var(--accent);overflow-x:auto;}footer{text-align:center;padding:1.5rem;font-size:0.85rem;color:var(--muted);border-top:1px solid var(--border);}',
+            "*,\n*::before,\n*::after {\n    box-sizing: border-box;\n    margin: 0;\n    padding: 0;\n}\nhtml {\n    -webkit-text-size-adjust: 100%;\n    tab-size: 4;\n}\nimg,\npicture,\nvideo,\ncanvas,\nsvg {\n    display: block;\n    max-width: 100%;\n}\ninput,\nbutton,\ntextarea,\nselect {\n    font: inherit;\n}\np,\nh1,\nh2,\nh3,\nh4,\nh5,\nh6 {\n    overflow-wrap: break-word;\n}\na {\n    color: inherit;\n}\n:root {\n    --bg: #0f0f11;\n    --surface: #1a1a1f;\n    --border: #2a2a32;\n    --text: #e8e8f0;\n    --muted: #888899;\n    --accent: #7c6af7;\n}\n@keyframes bg-spin {\n    from {\n        transform: rotate(0deg);\n    }\n    to {\n        transform: rotate(90deg);\n    }\n}\nbody::before {\n    content: '';\n    position: fixed;\n    bottom: -10%;\n    right: -10%;\n    width: 70vmin;\n    height: 70vmin;\n    background: url(scratch.svg) center / contain no-repeat;\n    filter: invert(1);\n    opacity: 0.04;\n    pointer-events: none;\n    z-index: -1;\n    animation: bg-spin linear both;\n    animation-timeline: scroll();\n}\nbody {\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 1rem;\n    line-height: 1.6;\n    color: var(--text);\n    background: var(--bg);\n    min-height: 100dvh;\n    display: flex;\n    flex-direction: column;\n}\nheader {\n    text-align: center;\n    padding: 5rem 2rem 3rem;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    gap: 1rem;\n}\nheader img {\n    width: 64px;\n    height: 64px;\n    color: var(--accent);\n    filter: invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);\n}\nh1 {\n    font-size: 3rem;\n    font-weight: 700;\n    letter-spacing: -0.03em;\n    line-height: 1.1;\n}\n.tagline {\n    font-size: 1.15rem;\n    color: var(--muted);\n    max-width: 38ch;\n}\nmain {\n    flex: 1;\n    width: 100%;\n    max-width: 1100px;\n    margin: 0 auto;\n    padding: 0 2rem 4rem;\n    display: flex;\n    flex-direction: column;\n    gap: 4rem;\n}\nh2 {\n    font-size: 1.25rem;\n    font-weight: 600;\n    margin-bottom: 1.25rem;\n    color: var(--muted);\n    text-transform: uppercase;\n    letter-spacing: 0.08em;\n    font-size: 0.8rem;\n}\n.feature-grid {\n    list-style: none;\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n    gap: 1rem;\n}\n.feature-card {\n    background: var(--surface);\n    border: 1px solid var(--border);\n    border-radius: 10px;\n    padding: 1.25rem 1.5rem;\n    display: flex;\n    flex-direction: column;\n    gap: 0.4rem;\n}\n.feature-card strong {\n    font-size: 1rem;\n    font-weight: 600;\n}\n.feature-card p {\n    font-size: 0.9rem;\n    color: var(--muted);\n    line-height: 1.5;\n}\npre {\n    position: relative;\n}\n.copy-btn {\n    position: absolute;\n    top: 0.5rem;\n    right: 0.5rem;\n    padding: 0.2rem 0.6rem;\n    font-size: 0.75rem;\n    font-family: ui-monospace, monospace;\n    background: var(--border);\n    color: var(--muted);\n    border: 1px solid var(--border);\n    border-radius: 4px;\n    cursor: pointer;\n    transition: color 0.15s, background 0.15s;\n}\n.copy-btn:hover {\n    background: var(--accent);\n    color: #fff;\n    border-color: var(--accent);\n}\n.getting-started pre {\n    background: var(--surface);\n    border: 1px solid var(--border);\n    border-radius: 8px;\n    padding: 1rem 1.5rem;\n    font-family: ui-monospace, monospace;\n    font-size: 0.95rem;\n    color: var(--accent);\n    overflow-x: auto;\n}\nfooter {\n    font-size: 0.85rem;\n    color: var(--muted);\n    border-top: 1px solid var(--border);\n}\nfooter > div {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    max-width: 1100px;\n    margin: 0 auto;\n    padding: 1.5rem 2rem;\n}\nfooter a {\n    color: var(--accent);\n    text-decoration: none;\n}\nfooter a:hover {\n    text-decoration: underline;\n}\n",
         'assets/scratch.svg':
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><line x1="135" y1="42" x2="62" y2="52" stroke="#000000" stroke-width="5" stroke-linecap="round" /><line x1="62" y1="52" x2="82" y2="102" stroke="#000000" stroke-width="5" stroke-linecap="round" /><line x1="82" y1="102" x2="132" y2="92" stroke="#000000" stroke-width="5" stroke-linecap="round" /><line x1="132" y1="92" x2="118" y2="152" stroke="#000000" stroke-width="5" stroke-linecap="round" /><line x1="118" y1="152" x2="62" y2="158" stroke="#000000" stroke-width="5" stroke-linecap="round" /></svg>',
-        'scratch.config.json': `{"input": "src","output": "dist","assets": "assets","port": 8080}`,
-        'tsconfig.json': `{"compilerOptions": {"target": "ES2020","module": "ESNext","jsx": "react","jsxFactory": "jsx","jsxFragmentFactory": "Fragment","strict": true,"esModuleInterop": true,"skipLibCheck": true,"forceConsistentCasingInFileNames": true,"outDir": "./.scratch","rootDir": "./","lib": ["ES2020"],"types": ["node"],"typeRoots": ["./node_modules/@types"]},"include": ["**/*.ts","**/*.tsx"],"exclude": ["node_modules","dist"]}`,
-        'tsconfig.client.json': `{"compilerOptions": {"target": "ES2020","module": "ESNext","strict": true,"esModuleInterop": true,"skipLibCheck": true,"forceConsistentCasingInFileNames": true,"outDir": "./.scratch","rootDir": "./","lib": ["DOM","ES2020"],"moduleResolution": "bundler"},"include": ["**/src/client.ts"],"exclude": ["node_modules","dist"]}`,
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">\n    <line x1="135" y1="42" x2="62" y2="52" stroke="#000000" stroke-width="5" stroke-linecap="round" />\n    <line x1="62" y1="52" x2="82" y2="102" stroke="#000000" stroke-width="5" stroke-linecap="round" />\n    <line x1="82" y1="102" x2="132" y2="92" stroke="#000000" stroke-width="5" stroke-linecap="round" />\n    <line x1="132" y1="92" x2="118" y2="152" stroke="#000000" stroke-width="5" stroke-linecap="round" />\n    <line x1="118" y1="152" x2="62" y2="158" stroke="#000000" stroke-width="5" stroke-linecap="round" />\n</svg>\n',
+        '.github/workflows/deploy.yml':
+            "name: Deploy to GitHub Pages\non:\n    push:\n        branches: ['main']\n    workflow_dispatch:\n\npermissions:\n    contents: read\n    pages: write\n    id-token: write\njobs:\n    deploy:\n        name: Deploy\n        concurrency:\n            group: 'deploy-to-github-pages'\n            cancel-in-progress: true\n        runs-on: ubuntu-latest\n        environment:\n            name: github-pages\n            url: ${{ steps.deployment.outputs.page_url }}\n        steps:\n            - name: Checkout\n              uses: actions/checkout@v4\n            - name: Setup Node\n              uses: actions/setup-node@v4\n              with:\n                  node-version: '24'\n            - name: Build project\n              run: npm ci && npm run build\n            - name: Upload artifact\n              uses: actions/upload-pages-artifact@v3\n              with:\n                  path: './dist'\n            - name: Deploy to GitHub Pages\n              id: deployment\n              uses: actions/deploy-pages@v4\n",
+        'scratch.config.json': '{ "input": "src", "output": "dist", "assets": "assets", "port": 8080 }\n',
+        'tsconfig.client.json':
+            '{\n    "compilerOptions": {\n        "target": "ES2020",\n        "module": "ESNext",\n        "strict": true,\n        "esModuleInterop": true,\n        "skipLibCheck": true,\n        "forceConsistentCasingInFileNames": true,\n        "outDir": "./.scratch",\n        "rootDir": "./",\n        "lib": ["DOM", "ES2020"],\n        "moduleResolution": "bundler"\n    },\n    "include": ["src/client.ts"],\n    "exclude": ["node_modules", "dist"]\n}\n',
+        'tsconfig.json':
+            '{\n    "compilerOptions": {\n        "target": "ES2020",\n        "module": "ESNext",\n        "jsx": "react",\n        "jsxFactory": "jsx",\n        "jsxFragmentFactory": "Fragment",\n        "strict": true,\n        "esModuleInterop": true,\n        "skipLibCheck": true,\n        "forceConsistentCasingInFileNames": true,\n        "outDir": "./.scratch",\n        "rootDir": "./",\n        "lib": ["ES2020"],\n        "types": ["node"],\n        "typeRoots": ["./node_modules/@types"]\n    },\n    "include": ["**/*.ts", "**/*.tsx"],\n    "exclude": ["node_modules", "dist", "src/client.ts"]\n}\n',
     };
 
-    Object.entries(FILE_CREATION_MAP).forEach(([file, content]) =>
-        fs.writeFileSync(file, content)
-    );
+    Object.entries(FILE_CREATION_MAP).forEach(([file, content]) => fs.writeFileSync(file, content));
 
     // install dependencies
-    execSync(`npm install --save-dev csstype typescript tsx @types/node`, {
-        stdio: 'inherit',
-    });
+    exe(`npm install --save-dev csstype typescript tsx @types/node`);
 
-    log.success(
-        `\n🎉 Project set up! Run ${color.cyan}tsx scratch.ts dev${color.reset} to start the dev server.`
-    );
+    log.info(`\n Add these to your package.json under "scripts":\n`);
+    log.info(`  "dev": "tsx scratch.ts dev",`);
+    log.info(`  "build": "tsx scratch.ts build",\n`);
+
+    console.log(`
+${color.green}╔══════════════════════════════════════╗
+║   🎉  Project ready!                 ║
+╚══════════════════════════════════════╝${color.reset}
+
+${color.cyan}  tsx scratch.ts dev${color.reset}   — start dev server
+${color.cyan}  tsx scratch.ts build${color.reset} — build for production
+`);
+    exe('tsx scratch.ts dev');
 }
 
 // ============================================================================

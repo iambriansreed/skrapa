@@ -690,6 +690,11 @@ jobs:
         fs.writeFileSync(root(file), content);
     });
 
+    // ensure package.json exists before installing
+    if (!fs.existsSync(root('package.json'))) {
+        exe(`npm init -y`);
+    }
+
     // install dependencies
     exe(`npm install --save-dev csstype typescript tsx @types/node`);
 

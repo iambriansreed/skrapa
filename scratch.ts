@@ -454,12 +454,28 @@ btn?.addEventListener('click', () => {
                 <title>Scratch.ts</title>
             </head>
             <body>
+                <a
+                    class="github-link"
+                    href="https://github.com/iambriansreed/scratch"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="GitHub"
+                >
+                    <img src="github.svg" alt="GitHub" width="22" height="22" />
+                </a>
                 <div class="center">
                     <img src="scratch.svg" class="logo" alt="Scratch.ts Logo" width="80" height="80" />
                     <h1>Scratch.ts</h1>
                     <button id="counter">count is 0</button>
-                    <p class="hint">Edit <code>src/index.tsx</code> and save to test live reload</p>
-                    <p class="sub">Built with <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">Scratch.ts v1.0.0</a></p>
+                    <p class="hint">
+                        Edit <code>src/index.tsx</code> and save to test live reload
+                    </p>
+                    <p class="sub">
+                        Built with{' '}
+                        <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
+                            Scratch.ts v1.0.0
+                        </a>
+                    </p>
                 </div>
             </body>
         </html>
@@ -500,16 +516,37 @@ body {
     padding: 2rem;
 }
 
+.github-link {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+    z-index: 10;
+}
+.github-link:hover { opacity: 1; }
+.github-link img { filter: invert(1); }
+
 .logo {
     filter: invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);
     animation: spin linear both;
     animation-timeline: scroll();
 }
 
+@keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
 h1 {
     font-size: 2.5rem;
     font-weight: 700;
     letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--text) 35%, var(--accent) 50%, var(--text) 65%);
+    background-size: 400% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 12s linear infinite;
 }
 
 button {

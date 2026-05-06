@@ -32,16 +32,37 @@ body {
     padding: 2rem;
 }
 
+.github-link {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+    z-index: 10;
+}
+.github-link:hover { opacity: 1; }
+.github-link img { filter: invert(1); }
+
 .logo {
     filter: invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);
     animation: spin linear both;
     animation-timeline: scroll();
 }
 
+@keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
 h1 {
     font-size: 2.5rem;
     font-weight: 700;
     letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--text) 35%, var(--accent) 50%, var(--text) 65%);
+    background-size: 400% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 12s linear infinite;
 }
 
 button {

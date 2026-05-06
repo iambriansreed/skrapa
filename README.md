@@ -18,7 +18,7 @@ assets/        →  copied as-is to dist/
 ## Quick Start
 
 ```bash
-curl -Lo scratch.ts https://iamb.dev/scratch/s
+curl -Lo scratch.ts https://s.iamb.dev
 npx tsx scratch.ts init
 ```
 

@@ -26,14 +26,30 @@ function writeMap() {
     }
 
     // update scratch.ts with the new map
-    const content = fs.readFileSync(path.join(ROOT, 'scratch.ts'), 'utf-8');
+    const entries = Object.entries(map)
+        .map(([key, value]) => {
+            const escaped = value.replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+            return `        ${JSON.stringify(key)}: \`${escaped}\``;
+        })
+        .join(',\n');
+
+    const scratchPath = path.join(ROOT, 'scratch.ts');
+    const content = fs.readFileSync(scratchPath, 'utf-8');
+    const before = Buffer.byteLength(content, 'utf-8');
+
     const newContent = content.replace(
         /\/\* FILE_CREATION_MAP > \*\/[\s\S]*\/\* < FILE_CREATION_MAP \*\//,
-        `/* FILE_CREATION_MAP > */\n    const FILE_CREATION_MAP = ${JSON.stringify(map, null, 4)};\n    /* < FILE_CREATION_MAP */`
+        `/* FILE_CREATION_MAP > */\n    const FILE_CREATION_MAP = {\n${entries}\n    };\n    /* < FILE_CREATION_MAP */`
     );
-    fs.writeFileSync(path.join(ROOT, 'scratch.ts'), newContent);
+    fs.writeFileSync(scratchPath, newContent);
 
-    console.log(`Updated scratch.ts with ${Object.keys(map).length} files.`);
+    const after = Buffer.byteLength(newContent, 'utf-8');
+    const kb = (n: number) => `${(n / 1024).toFixed(1)}kb`;
+    const diff = after - before;
+    const sign = diff >= 0 ? '+' : '';
+    console.log(
+        `Updated scratch.ts with ${Object.keys(map).length} files — ${kb(before)} → ${kb(after)} (${sign}${kb(diff)})`
+    );
 }
 
 writeMap();

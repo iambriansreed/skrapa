@@ -431,21 +431,403 @@ export async function init() {
 
     /* FILE_CREATION_MAP > */
     const FILE_CREATION_MAP = {
-    "src/client.ts": "document.querySelectorAll('pre').forEach((pre) => {\n    const code = pre.querySelector('code:not([data-no-copy])');\n    if (!code) return;\n\n    const btn = document.createElement('button');\n    btn.className = 'copy-btn';\n    btn.textContent = 'Copy';\n    pre.appendChild(btn);\n\n    btn.addEventListener('click', () => {\n        navigator.clipboard.writeText(code.textContent ?? '').then(() => {\n            btn.textContent = 'Copied!';\n            setTimeout(() => (btn.textContent = 'Copy'), 2000);\n        });\n    });\n});\n",
-    "src/features.tsx": "const features = [\n    {\n        title: 'TypeScript First<br /><i>TypeScript Only</i>',\n        desc: 'Full type safety from day one for TSX and client-side code.',\n    },\n    { title: 'Live Reload<br /><i>for Development</i>', desc: 'Instant feedback in the browser as you save.' },\n    {\n        title: 'Static Output<br /><i>for Production</i>',\n        desc: 'Builds to a single index.html with embedded CSS and JS.',\n    },\n    {\n        title: 'Devops Headaches<br /><i>Solved</i>',\n        desc: 'No setup required. Drop in scratch.ts and go — sane defaults handle the rest.',\n    },\n];\nexport function Features() {\n    return (\n        <section class=\"features\">\n            <h2>Features</h2>\n            <ul class=\"feature-grid\">\n                {' '}\n                {features.map((f) => (\n                    <li class=\"feature-card\">\n                        <strong>{f.title}</strong>\n                        <p>{f.desc}</p>\n                    </li>\n                ))}{' '}\n            </ul>\n        </section>\n    );\n}\n",
-    "src/index.tsx": "import { Features } from './features';\nexport function Root() {\n    return (\n        <html lang=\"en\">\n            <head>\n                <meta charset=\"UTF-8\" />\n                <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n                <title>Scratch.ts</title>\n            </head>\n            <body>\n                <header>\n                    <img src=\"scratch.svg\" alt=\"Scratch Logo\" width=\"64\" height=\"64\" />\n                    <h1>Scratch.ts</h1>\n                    <p class=\"tagline\"> A minimal JSX build tool for rapid prototyping </p>\n                </header>\n                <main>\n                    <Features />\n                    <section class=\"getting-started\">\n                        <h2>Get Started</h2>\n                        <p>Download the script</p>\n                        <pre>\n                            <code>curl -o scratch.ts https://iambrian.com/scratch/scratch.ts</code>\n                        </pre>\n                        <br />\n                        <p>Initialize your project</p>\n                        <pre>\n                            <code>npx tsx scratch.ts init</code>\n                        </pre>\n                        <br />\n                        <p>Start the dev server</p>\n                        <pre>\n                            <code>tsx scratch.ts dev</code>\n                        </pre>\n                    </section>\n                </main>\n                <footer>\n                    <div>\n                        <p>\n                            Built with{' '}\n                            <a href=\"https://iambrian.com/scratch\" target=\"_blank\" rel=\"noopener\">\n                                Scratch.ts v1.0.0\n                            </a>\n                        </p>\n                        <p>\n                            Made with ♥ by{' '}\n                            <a href=\"https://iambrian.com\" target=\"_blank\" rel=\"noopener\">\n                                iambrian.com\n                            </a>\n                        </p>\n                    </div>\n                </footer>\n            </body>\n        </html>\n    );\n}\n",
-    "src/style.css": "*,\n*::before,\n*::after {\n    box-sizing: border-box;\n    margin: 0;\n    padding: 0;\n}\nhtml {\n    -webkit-text-size-adjust: 100%;\n    tab-size: 4;\n}\nimg,\npicture,\nvideo,\ncanvas,\nsvg {\n    display: block;\n    max-width: 100%;\n}\ninput,\nbutton,\ntextarea,\nselect {\n    font: inherit;\n}\np,\nh1,\nh2,\nh3,\nh4,\nh5,\nh6 {\n    overflow-wrap: break-word;\n}\na {\n    color: inherit;\n}\n:root {\n    --bg: #0f0f11;\n    --surface: #1a1a1f;\n    --border: #2a2a32;\n    --text: #e8e8f0;\n    --muted: #888899;\n    --accent: #7c6af7;\n}\n@keyframes bg-spin {\n    from {\n        transform: rotate(0deg);\n    }\n    to {\n        transform: rotate(90deg);\n    }\n}\nbody::before {\n    content: '';\n    position: fixed;\n    bottom: -10%;\n    right: -10%;\n    width: 70vmin;\n    height: 70vmin;\n    background: url(scratch.svg) center / contain no-repeat;\n    filter: invert(1);\n    opacity: 0.04;\n    pointer-events: none;\n    z-index: -1;\n    animation: bg-spin linear both;\n    animation-timeline: scroll();\n}\nbody {\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 1rem;\n    line-height: 1.6;\n    color: var(--text);\n    background: var(--bg);\n    min-height: 100dvh;\n    display: flex;\n    flex-direction: column;\n}\nheader {\n    text-align: center;\n    padding: 5rem 2rem 3rem;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    gap: 1rem;\n}\nheader img {\n    width: 64px;\n    height: 64px;\n    color: var(--accent);\n    filter: invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);\n}\nh1 {\n    font-size: 3rem;\n    font-weight: 700;\n    letter-spacing: -0.03em;\n    line-height: 1.1;\n}\n.tagline {\n    font-size: 1.15rem;\n    color: var(--muted);\n    max-width: 38ch;\n}\nmain {\n    flex: 1;\n    width: 100%;\n    max-width: 1100px;\n    margin: 0 auto;\n    padding: 0 2rem 4rem;\n    display: flex;\n    flex-direction: column;\n    gap: 4rem;\n}\nh2 {\n    font-size: 1.25rem;\n    font-weight: 600;\n    margin-bottom: 1.25rem;\n    color: var(--muted);\n    text-transform: uppercase;\n    letter-spacing: 0.08em;\n    font-size: 0.8rem;\n}\n.feature-grid {\n    list-style: none;\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n    gap: 1rem;\n}\n.feature-card {\n    background: var(--surface);\n    border: 1px solid var(--border);\n    border-radius: 10px;\n    padding: 1.25rem 1.5rem;\n    display: flex;\n    flex-direction: column;\n    gap: 0.4rem;\n}\n.feature-card strong {\n    font-size: 1rem;\n    font-weight: 600;\n}\n.feature-card p {\n    font-size: 0.9rem;\n    color: var(--muted);\n    line-height: 1.5;\n}\npre {\n    position: relative;\n}\n.copy-btn {\n    position: absolute;\n    top: 0.5rem;\n    right: 0.5rem;\n    padding: 0.2rem 0.6rem;\n    font-size: 0.75rem;\n    font-family: ui-monospace, monospace;\n    background: var(--border);\n    color: var(--muted);\n    border: 1px solid var(--border);\n    border-radius: 4px;\n    cursor: pointer;\n    transition: color 0.15s, background 0.15s;\n}\n.copy-btn:hover {\n    background: var(--accent);\n    color: #fff;\n    border-color: var(--accent);\n}\n.getting-started pre {\n    background: var(--surface);\n    border: 1px solid var(--border);\n    border-radius: 8px;\n    padding: 1rem 1.5rem;\n    font-family: ui-monospace, monospace;\n    font-size: 0.95rem;\n    color: var(--accent);\n    overflow-x: auto;\n}\nfooter {\n    font-size: 0.85rem;\n    color: var(--muted);\n    border-top: 1px solid var(--border);\n}\nfooter > div {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    max-width: 1100px;\n    margin: 0 auto;\n    padding: 1.5rem 2rem;\n}\nfooter a {\n    color: var(--accent);\n    text-decoration: none;\n}\nfooter a:hover {\n    text-decoration: underline;\n}\n",
-    "assets/scratch.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\">\n    <line x1=\"135\" y1=\"42\" x2=\"62\" y2=\"52\" stroke=\"#000000\" stroke-width=\"5\" stroke-linecap=\"round\" />\n    <line x1=\"62\" y1=\"52\" x2=\"82\" y2=\"102\" stroke=\"#000000\" stroke-width=\"5\" stroke-linecap=\"round\" />\n    <line x1=\"82\" y1=\"102\" x2=\"132\" y2=\"92\" stroke=\"#000000\" stroke-width=\"5\" stroke-linecap=\"round\" />\n    <line x1=\"132\" y1=\"92\" x2=\"118\" y2=\"152\" stroke=\"#000000\" stroke-width=\"5\" stroke-linecap=\"round\" />\n    <line x1=\"118\" y1=\"152\" x2=\"62\" y2=\"158\" stroke=\"#000000\" stroke-width=\"5\" stroke-linecap=\"round\" />\n</svg>\n",
-    ".github/workflows/deploy.yml": "name: Deploy to GitHub Pages\non:\n    push:\n        branches: ['main']\n    workflow_dispatch:\n\npermissions:\n    contents: read\n    pages: write\n    id-token: write\njobs:\n    deploy:\n        name: Deploy\n        concurrency:\n            group: 'deploy-to-github-pages'\n            cancel-in-progress: true\n        runs-on: ubuntu-latest\n        environment:\n            name: github-pages\n            url: ${{ steps.deployment.outputs.page_url }}\n        steps:\n            - name: Checkout\n              uses: actions/checkout@v4\n            - name: Setup Node\n              uses: actions/setup-node@v4\n              with:\n                  node-version: '24'\n            - name: Build project\n              run: npm ci && npm run build\n            - name: Upload artifact\n              uses: actions/upload-pages-artifact@v3\n              with:\n                  path: './dist'\n            - name: Deploy to GitHub Pages\n              id: deployment\n              uses: actions/deploy-pages@v4\n",
-    "scratch.config.json": "{ \"input\": \"src\", \"output\": \"dist\", \"assets\": \"assets\", \"port\": 8080 }\n",
-    "tsconfig.client.json": "{\n    \"compilerOptions\": {\n        \"target\": \"ES2020\",\n        \"module\": \"ESNext\",\n        \"strict\": true,\n        \"esModuleInterop\": true,\n        \"skipLibCheck\": true,\n        \"forceConsistentCasingInFileNames\": true,\n        \"outDir\": \"./.scratch\",\n        \"rootDir\": \"./\",\n        \"lib\": [\"DOM\", \"ES2020\"],\n        \"moduleResolution\": \"bundler\"\n    },\n    \"include\": [\"src/client.ts\"],\n    \"exclude\": [\"node_modules\", \"dist\"]\n}\n",
-    "tsconfig.json": "{\n    \"compilerOptions\": {\n        \"target\": \"ES2020\",\n        \"module\": \"ESNext\",\n        \"jsx\": \"react\",\n        \"jsxFactory\": \"jsx\",\n        \"jsxFragmentFactory\": \"Fragment\",\n        \"strict\": true,\n        \"esModuleInterop\": true,\n        \"skipLibCheck\": true,\n        \"forceConsistentCasingInFileNames\": true,\n        \"outDir\": \"./.scratch\",\n        \"rootDir\": \"./\",\n        \"lib\": [\"ES2020\"],\n        \"types\": [\"node\"],\n        \"typeRoots\": [\"./node_modules/@types\"]\n    },\n    \"include\": [\"**/*.ts\", \"**/*.tsx\"],\n    \"exclude\": [\"node_modules\", \"dist\", \"src/client.ts\"]\n}\n"
-};
+        "src/client.ts": `document.querySelectorAll('pre').forEach((pre) => {
+    const code = pre.querySelector('code:not([data-no-copy])');
+    if (!code) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    pre.appendChild(btn);
+
+    btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(code.textContent ?? '').then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => (btn.textContent = 'Copy'), 2000);
+        });
+    });
+});
+`,
+        "src/features.tsx": `const features = [
+    {
+        title: 'TypeScript First<br /><i>TypeScript Only</i>',
+        desc: 'Full type safety from day one for TSX and client-side code.',
+    },
+    { title: 'Live Reload<br /><i>for Development</i>', desc: 'Instant feedback in the browser as you save.' },
+    {
+        title: 'Static Output<br /><i>for Production</i>',
+        desc: 'Builds to a single index.html with embedded CSS and JS.',
+    },
+    {
+        title: 'Devops Headaches<br /><i>Solved</i>',
+        desc: 'No setup required. Drop in scratch.ts and go — sane defaults handle the rest.',
+    },
+];
+export function Features() {
+    return (
+        <section class="features">
+            <h2>Features</h2>
+            <ul class="feature-grid">
+                {' '}
+                {features.map((f) => (
+                    <li class="feature-card">
+                        <strong>{f.title}</strong>
+                        <p>{f.desc}</p>
+                    </li>
+                ))}{' '}
+            </ul>
+        </section>
+    );
+}
+`,
+        "src/index.tsx": `import { Features } from './features';
+export function Root() {
+    return (
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>Scratch.ts</title>
+            </head>
+            <body>
+                <header>
+                    <img src="scratch.svg" alt="Scratch Logo" width="64" height="64" />
+                    <h1>Scratch.ts</h1>
+                    <p class="tagline"> A minimal JSX build tool for rapid prototyping </p>
+                </header>
+                <main>
+                    <Features />
+                    <section class="getting-started">
+                        <h2>Get Started</h2>
+                        <p>Download the script</p>
+                        <pre>
+                            <code>curl -o scratch.ts https://iambrian.com/scratch/scratch.ts</code>
+                        </pre>
+                        <br />
+                        <p>Initialize your project</p>
+                        <pre>
+                            <code>npx tsx scratch.ts init</code>
+                        </pre>
+                        <br />
+                        <p>Start the dev server</p>
+                        <pre>
+                            <code>tsx scratch.ts dev</code>
+                        </pre>
+                    </section>
+                </main>
+                <footer>
+                    <div>
+                        <p>
+                            Built with{' '}
+                            <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
+                                Scratch.ts v1.0.0
+                            </a>
+                        </p>
+                        <p>
+                            Made with ♥ by{' '}
+                            <a href="https://iambrian.com" target="_blank" rel="noopener">
+                                iambrian.com
+                            </a>
+                        </p>
+                    </div>
+                </footer>
+            </body>
+        </html>
+    );
+}
+`,
+        "src/style.css": `*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+html {
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+}
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+}
+input,
+button,
+textarea,
+select {
+    font: inherit;
+}
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    overflow-wrap: break-word;
+}
+a {
+    color: inherit;
+}
+:root {
+    --bg: #0f0f11;
+    --surface: #1a1a1f;
+    --border: #2a2a32;
+    --text: #e8e8f0;
+    --muted: #888899;
+    --accent: #7c6af7;
+}
+@keyframes bg-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(90deg);
+    }
+}
+body::before {
+    content: '';
+    position: fixed;
+    bottom: -10%;
+    right: -10%;
+    width: 70vmin;
+    height: 70vmin;
+    background: url(scratch.svg) center / contain no-repeat;
+    filter: invert(1);
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: -1;
+    animation: bg-spin linear both;
+    animation-timeline: scroll();
+}
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+header {
+    text-align: center;
+    padding: 5rem 2rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+header img {
+    width: 64px;
+    height: 64px;
+    color: var(--accent);
+    filter: invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);
+}
+h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+.tagline {
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 38ch;
+}
+main {
+    flex: 1;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+}
+h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.8rem;
+}
+.feature-grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+.feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.feature-card strong {
+    font-size: 1rem;
+    font-weight: 600;
+}
+.feature-card p {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+pre {
+    position: relative;
+}
+.copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-family: ui-monospace, monospace;
+    background: var(--border);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+}
+.copy-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+.getting-started pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: var(--accent);
+    overflow-x: auto;
+}
+footer {
+    font-size: 0.85rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+}
+footer > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+}
+footer a {
+    color: var(--accent);
+    text-decoration: none;
+}
+footer a:hover {
+    text-decoration: underline;
+}
+`,
+        "assets/scratch.svg": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <line x1="135" y1="42" x2="62" y2="52" stroke="#000000" stroke-width="5" stroke-linecap="round" />
+    <line x1="62" y1="52" x2="82" y2="102" stroke="#000000" stroke-width="5" stroke-linecap="round" />
+    <line x1="82" y1="102" x2="132" y2="92" stroke="#000000" stroke-width="5" stroke-linecap="round" />
+    <line x1="132" y1="92" x2="118" y2="152" stroke="#000000" stroke-width="5" stroke-linecap="round" />
+    <line x1="118" y1="152" x2="62" y2="158" stroke="#000000" stroke-width="5" stroke-linecap="round" />
+</svg>
+`,
+        ".github/workflows/deploy.yml": `name: Deploy to GitHub Pages
+on:
+    push:
+        branches: ['main']
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+jobs:
+    deploy:
+        name: Deploy
+        concurrency:
+            group: 'deploy-to-github-pages'
+            cancel-in-progress: true
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: \${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+            - name: Build project
+              run: npm ci && npm run build
+            - name: Upload artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: './dist'
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4
+`,
+        "scratch.config.json": `{ "input": "src", "output": "dist", "assets": "assets", "port": 8080 }
+`,
+        "tsconfig.client.json": `{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ESNext",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "outDir": "./.scratch",
+        "rootDir": "./",
+        "lib": ["DOM", "ES2020"],
+        "moduleResolution": "bundler"
+    },
+    "include": ["src/client.ts"],
+    "exclude": ["node_modules", "dist"]
+}
+`,
+        "tsconfig.json": `{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ESNext",
+        "jsx": "react",
+        "jsxFactory": "jsx",
+        "jsxFragmentFactory": "Fragment",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "outDir": "./.scratch",
+        "rootDir": "./",
+        "lib": ["ES2020"],
+        "types": ["node"],
+        "typeRoots": ["./node_modules/@types"]
+    },
+    "include": ["**/*.ts", "**/*.tsx"],
+    "exclude": ["node_modules", "dist", "src/client.ts"]
+}
+`
+    };
     /* < FILE_CREATION_MAP */
 
+    const force = process.argv.includes('-f') || process.argv.includes('--force');
+
     Object.entries(FILE_CREATION_MAP).forEach(([file, content]) => {
-        if (fs.existsSync(root(file))) log.gray(`Skipped existing file: ${file}`);
-        else fs.writeFileSync(root(file), content);
+        if (!force && fs.existsSync(root(file))) return log.gray(`Skipped existing file: ${file}`);
+        fs.writeFileSync(root(file), content);
     });
 
     // install dependencies

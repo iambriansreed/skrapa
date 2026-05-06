@@ -38,7 +38,7 @@ export function Root() {
                         <h2>Get Started</h2>
                         <p>Download the script</p>
                         <pre>
-                            <code>curl -o scratch.ts https://iamb.dev/scratch/s</code>
+                            <code>curl -Lo scratch.ts https://iamb.dev/scratch/s</code>
                         </pre>
                         <p>Initialize your project</p>
                         <pre>

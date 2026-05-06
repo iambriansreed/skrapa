@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "tsx scratch.ts dev",
         "build": "tsx scratch.ts build",
-        "postbuild": "cp scratch.ts dist/scratch.ts",
+        "postbuild": "cp scratch.ts dist/s",
         "postversion": "tsx version.ts && git add scratch.ts src/index.tsx README.md",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",
@@ -20,6 +20,7 @@
         "tsx": "^4.21.0",
         "typescript": "^6.0.3"
     },
+    "engines": { "node": ">=24" },
     "keywords": [],
     "description": ""
 }

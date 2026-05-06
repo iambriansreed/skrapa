@@ -1,0 +1,87 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; }
+
+:root {
+    --bg: #0f0f11;
+    --surface: #1a1a1f;
+    --border: #2a2a32;
+    --text: #e8e8f0;
+    --muted: #888899;
+    --accent: #7c6af7;
+}
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+    padding: 2rem;
+}
+
+.logo {
+    filter: invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);
+    animation: spin linear both;
+    animation-timeline: scroll();
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+button {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+button:hover {
+    border-color: var(--accent);
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+code {
+    font-family: ui-monospace, monospace;
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+.sub {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.sub a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.sub a:hover { text-decoration: underline; }
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

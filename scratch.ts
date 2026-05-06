@@ -224,7 +224,14 @@ function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]): string
                   if (typeof value === 'boolean') return value ? ` ${k}` : '';
 
                   if (value && typeof value === 'object')
-                      return ` ${k}="${JSON.stringify(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`;
+                      return ` ${k}="${
+                          JSON.stringify(value)
+                              //
+                              .replace(/&/g, '&amp;')
+                              .replace(/"/g, '&quot;')
+                              .replace(/</g, '&lt;')
+                          //
+                      }"`;
 
                   return ` ${k}="${value}"`;
               })
@@ -431,57 +438,14 @@ export async function init() {
 
     /* FILE_CREATION_MAP > */
     const FILE_CREATION_MAP = {
-        "src/client.ts": `document.querySelectorAll('pre').forEach((pre) => {
-    const code = pre.querySelector('code:not([data-no-copy])');
-    if (!code) return;
-
-    const btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.textContent = 'Copy';
-    pre.appendChild(btn);
-
-    btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(code.textContent ?? '').then(() => {
-            btn.textContent = 'Copied!';
-            setTimeout(() => (btn.textContent = 'Copy'), 2000);
-        });
-    });
+        "src/client.ts": `const btn = document.getElementById('counter') as HTMLButtonElement;
+let count = 0;
+btn?.addEventListener('click', () => {
+    count++;
+    btn.textContent = \`count is \${count}\`;
 });
 `,
-        "src/features.tsx": `const features = [
-    {
-        title: 'TypeScript First<br /><i>TypeScript Only</i>',
-        desc: 'Full type safety from day one for TSX and client-side code.',
-    },
-    { title: 'Live Reload<br /><i>for Development</i>', desc: 'Instant feedback in the browser as you save.' },
-    {
-        title: 'Static Output<br /><i>for Production</i>',
-        desc: 'Builds to a single index.html with embedded CSS and JS.',
-    },
-    {
-        title: 'Devops Headaches<br /><i>Solved</i>',
-        desc: 'No setup required. Drop in scratch.ts and go — sane defaults handle the rest.',
-    },
-];
-export function Features() {
-    return (
-        <section class="features">
-            <h2>Features</h2>
-            <ul class="feature-grid">
-                {' '}
-                {features.map((f) => (
-                    <li class="feature-card">
-                        <strong>{f.title}</strong>
-                        <p>{f.desc}</p>
-                    </li>
-                ))}{' '}
-            </ul>
-        </section>
-    );
-}
-`,
-        "src/index.tsx": `import { Features } from './features';
-export function Root() {
+        "src/index.tsx": `export function Root() {
     return (
         <html lang="en">
             <head>
@@ -490,89 +454,22 @@ export function Root() {
                 <title>Scratch.ts</title>
             </head>
             <body>
-                <header>
-                    <img src="scratch.svg" alt="Scratch Logo" width="64" height="64" />
+                <div class="center">
+                    <img src="scratch.svg" class="logo" alt="Scratch.ts Logo" width="80" height="80" />
                     <h1>Scratch.ts</h1>
-                    <p class="tagline"> A minimal JSX build tool for rapid prototyping </p>
-                </header>
-                <main>
-                    <Features />
-                    <section class="getting-started">
-                        <h2>Get Started</h2>
-                        <p>Download the script</p>
-                        <pre>
-                            <code>curl -o scratch.ts https://iambrian.com/scratch/scratch.ts</code>
-                        </pre>
-                        <br />
-                        <p>Initialize your project</p>
-                        <pre>
-                            <code>npx tsx scratch.ts init</code>
-                        </pre>
-                        <br />
-                        <p>Start the dev server</p>
-                        <pre>
-                            <code>tsx scratch.ts dev</code>
-                        </pre>
-                    </section>
-                </main>
-                <footer>
-                    <div>
-                        <p>
-                            Built with{' '}
-                            <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
-                                Scratch.ts v1.0.0
-                            </a>
-                        </p>
-                        <p>
-                            Made with ♥ by{' '}
-                            <a href="https://iambrian.com" target="_blank" rel="noopener">
-                                iambrian.com
-                            </a>
-                        </p>
-                    </div>
-                </footer>
+                    <button id="counter">count is 0</button>
+                    <p class="hint">Edit <code>src/index.tsx</code> and save to test live reload</p>
+                    <p class="sub">Built with <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">Scratch.ts v1.0.0</a></p>
+                </div>
             </body>
         </html>
     );
 }
 `,
-        "src/style.css": `*,
-*::before,
-*::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-html {
-    -webkit-text-size-adjust: 100%;
-    tab-size: 4;
-}
-img,
-picture,
-video,
-canvas,
-svg {
-    display: block;
-    max-width: 100%;
-}
-input,
-button,
-textarea,
-select {
-    font: inherit;
-}
-p,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    overflow-wrap: break-word;
-}
-a {
-    color: inherit;
-}
+        "src/style.css": `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; }
+
 :root {
     --bg: #0f0f11;
     --surface: #1a1a1f;
@@ -581,29 +478,7 @@ a {
     --muted: #888899;
     --accent: #7c6af7;
 }
-@keyframes bg-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(90deg);
-    }
-}
-body::before {
-    content: '';
-    position: fixed;
-    bottom: -10%;
-    right: -10%;
-    width: 70vmin;
-    height: 70vmin;
-    background: url(scratch.svg) center / contain no-repeat;
-    filter: invert(1);
-    opacity: 0.04;
-    pointer-events: none;
-    z-index: -1;
-    animation: bg-spin linear both;
-    animation-timeline: scroll();
-}
+
 body {
     font-family: system-ui, -apple-system, sans-serif;
     font-size: 1rem;
@@ -612,128 +487,74 @@ body {
     background: var(--bg);
     min-height: 100dvh;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
-header {
-    text-align: center;
-    padding: 5rem 2rem 3rem;
+
+.center {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 1.5rem;
+    text-align: center;
+    padding: 2rem;
 }
-header img {
-    width: 64px;
-    height: 64px;
-    color: var(--accent);
+
+.logo {
     filter: invert(50%) sepia(80%) saturate(500%) hue-rotate(220deg);
+    animation: spin linear both;
+    animation-timeline: scroll();
 }
+
 h1 {
-    font-size: 3rem;
+    font-size: 2.5rem;
     font-weight: 700;
     letter-spacing: -0.03em;
-    line-height: 1.1;
 }
-.tagline {
-    font-size: 1.15rem;
-    color: var(--muted);
-    max-width: 38ch;
-}
-main {
-    flex: 1;
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 2rem 4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 4rem;
-}
-h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1.25rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.8rem;
-}
-.feature-grid {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-}
-.feature-card {
+
+button {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1.25rem 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-.feature-card strong {
-    font-size: 1rem;
-    font-weight: 600;
-}
-.feature-card p {
-    font-size: 0.9rem;
-    color: var(--muted);
-    line-height: 1.5;
-}
-pre {
-    position: relative;
-}
-.copy-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    padding: 0.2rem 0.6rem;
-    font-size: 0.75rem;
-    font-family: ui-monospace, monospace;
-    background: var(--border);
-    color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-}
-.copy-btn:hover {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-}
-.getting-started pre {
-    background: var(--surface);
+    color: var(--text);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 1rem 1.5rem;
-    font-family: ui-monospace, monospace;
-    font-size: 0.95rem;
-    color: var(--accent);
-    overflow-x: auto;
+    padding: 0.6rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
 }
-footer {
+
+button:hover {
+    border-color: var(--accent);
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+code {
+    font-family: ui-monospace, monospace;
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+.sub {
     font-size: 0.85rem;
     color: var(--muted);
-    border-top: 1px solid var(--border);
 }
-footer > div {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 1.5rem 2rem;
-}
-footer a {
+
+.sub a {
     color: var(--accent);
     text-decoration: none;
 }
-footer a:hover {
-    text-decoration: underline;
+
+.sub a:hover { text-decoration: underline; }
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
+`,
+        "assets/github.svg": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
 `,
         "assets/scratch.svg": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
     <line x1="135" y1="42" x2="62" y2="52" stroke="#000000" stroke-width="5" stroke-linecap="round" />
@@ -779,6 +600,8 @@ jobs:
             - name: Deploy to GitHub Pages
               id: deployment
               uses: actions/deploy-pages@v4
+`,
+        ".nvmrc": `24
 `,
         "scratch.config.json": `{ "input": "src", "output": "dist", "assets": "assets", "port": 8080 }
 `,

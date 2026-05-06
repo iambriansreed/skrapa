@@ -1,15 +1,32 @@
 /**
  * These are the helper scripts for the scratch development processes.
  *
- * $ tsx helper.ts
+ * $ tsx itch.ts --map  — update FILE_CREATION_MAP from src-example
+ * $ tsx itch.ts --swap — toggle between src and src-example
  */
 
 import fs from 'fs';
 import path from 'path';
 
 const ROOT = path.resolve(__dirname);
-const DIRS = ['src', 'assets', '.github/workflows/'];
-const FILES = ['scratch.config.json', 'tsconfig.client.json', 'tsconfig.json'];
+const DIRS = ['src-example', 'assets', '.github/workflows/'];
+const FILES = ['.nvmrc', 'scratch.config.json', 'tsconfig.client.json', 'tsconfig.json'];
+
+const arg = process.argv[2];
+
+function swap() {
+    const isExample = fs.existsSync(path.join(ROOT, 'src-main'));
+    if (isExample) {
+        fs.renameSync(path.join(ROOT, 'src'), path.join(ROOT, 'src-example'));
+        fs.renameSync(path.join(ROOT, 'src-main'), path.join(ROOT, 'src'));
+        console.log('Swapped to src');
+    } else {
+        fs.renameSync(path.join(ROOT, 'src'), path.join(ROOT, 'src-main'));
+        fs.renameSync(path.join(ROOT, 'src-example'), path.join(ROOT, 'src'));
+        console.log('Swapped to src-example');
+    }
+    process.exit(0);
+}
 
 function writeMap() {
     const map: Record<string, string> = {};
@@ -22,7 +39,8 @@ function writeMap() {
     ].flat();
 
     for (const file of fileNames) {
-        map[path.relative(ROOT, file)] = fs.readFileSync(file, 'utf-8');
+        const key = path.relative(ROOT, file).replace(/^src-example[\\/]/, 'src/');
+        map[key] = fs.readFileSync(file, 'utf-8');
     }
 
     // update scratch.ts with the new map
@@ -52,5 +70,12 @@ function writeMap() {
     );
 }
 
-writeMap();
-//clean();
+if (arg === '--swap') {
+    swap();
+} else if (arg === '--map') {
+    writeMap();
+} else {
+    console.log(
+        'Usage:\n  tsx itch.ts --map   — update FILE_CREATION_MAP from src-example\n  tsx itch.ts --swap  — toggle between src and src-example'
+    );
+}

@@ -18,11 +18,23 @@ assets/        →  copied as-is to dist/
 ## Quick Start
 
 ```bash
-curl -o scratch.ts https://iambrian.com/scratch
+curl -o scratch.ts https://example.com/scratch.ts
 npx tsx scratch.ts init
 ```
 
-`init` creates `src/`, `assets/`, config files, tsconfigs for Node and browser, a GitHub Actions workflow for Pages, installs dependencies, and starts the dev server.
+`init` creates the following files, installs dependencies, and starts the dev server:
+
+```
+src/client.ts                    # browser JS entry point
+src/features.tsx                 # example component
+src/index.tsx                    # root JSX component
+src/style.css                    # styles
+assets/scratch.svg               # logo
+.github/workflows/deploy.yml     # GitHub Pages deploy action
+scratch.config.json              # project config
+tsconfig.json                    # Node/build TypeScript config
+tsconfig.client.json             # browser TypeScript config
+```
 
 ## Commands
 

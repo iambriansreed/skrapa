@@ -258,7 +258,7 @@ export async function build(cfg?: ReturnType<typeof initConfig>) {
     const { Root } = await import(path.join(directory.input, 'index'));
 
     if (!process.argv.includes('skip-assets')) {
-        exe(`rm -rf ${directory.output} ${tmp} && mkdir -p ${directory.output} ${tmp}`);
+        exe(`rm -rf ${tmp} && mkdir -p ${tmp}`);
     }
 
     exe(`tsc -p ${path.join(ROOT_DIR, 'tsconfig.client.json')}`);
@@ -447,7 +447,10 @@ export async function init() {
             '{\n    "compilerOptions": {\n        "target": "ES2020",\n        "module": "ESNext",\n        "jsx": "react",\n        "jsxFactory": "jsx",\n        "jsxFragmentFactory": "Fragment",\n        "strict": true,\n        "esModuleInterop": true,\n        "skipLibCheck": true,\n        "forceConsistentCasingInFileNames": true,\n        "outDir": "./.scratch",\n        "rootDir": "./",\n        "lib": ["ES2020"],\n        "types": ["node"],\n        "typeRoots": ["./node_modules/@types"]\n    },\n    "include": ["**/*.ts", "**/*.tsx"],\n    "exclude": ["node_modules", "dist", "src/client.ts"]\n}\n',
     };
 
-    Object.entries(FILE_CREATION_MAP).forEach(([file, content]) => fs.writeFileSync(file, content));
+    Object.entries(FILE_CREATION_MAP).forEach(([file, content]) => {
+        if (fs.existsSync(root(file))) log.gray(`Skipped existing file: ${file}`);
+        else fs.writeFileSync(root(file), content);
+    });
 
     // install dependencies
     exe(`npm install --save-dev csstype typescript tsx @types/node`);

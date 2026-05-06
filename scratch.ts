@@ -136,23 +136,38 @@ const VOID_ELEMENTS = new Set([
     'wbr',
 ]);
 
+function parseFlags(): Partial<Config> {
+    const args = process.argv.slice(3);
+    const flags: Partial<Config> = {};
+
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--input') flags.input = args[++i];
+        else if (args[i] === '--output') flags.output = args[++i];
+        else if (args[i] === '--assets') flags.assets = args[++i];
+        else if (args[i] === '--port') flags.port = parseInt(args[++i]);
+    }
+    return flags;
+}
+
 function initConfig() {
     const configPath = path.resolve(ROOT_DIR, 'scratch.config.json');
+    const flagConfig = parseFlags();
 
-    let workingConfig: Config = { ...DEFAULT_CONFIG };
+    let config: Config = { ...DEFAULT_CONFIG };
     if (fs.existsSync(configPath)) {
-        const fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Config;
-        workingConfig = { ...DEFAULT_CONFIG, ...fileConfig };
+        const fileConfig: Config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        config = { ...DEFAULT_CONFIG, ...fileConfig, ...flagConfig };
         log.success(`Loaded config from: ${path.relative(ROOT_DIR, configPath)}`);
     } else {
-        log.gray(`No config file found, using defaults: ${JSON.stringify(workingConfig, null, 2)}`);
+        config = { ...DEFAULT_CONFIG, ...flagConfig };
+        log.gray(`No config file found, using defaults: ${JSON.stringify(config, null, 2)}`);
     }
 
-    const input = workingConfig.input ? path.resolve(ROOT_DIR, workingConfig.input) : '';
+    const input = config.input ? path.resolve(ROOT_DIR, config.input) : '';
 
-    const output = workingConfig.output ? path.resolve(ROOT_DIR, workingConfig.output) : '';
+    const output = config.output ? path.resolve(ROOT_DIR, config.output) : '';
 
-    const assets = workingConfig.assets ? path.resolve(ROOT_DIR, workingConfig.assets) : '';
+    const assets = config.assets ? path.resolve(ROOT_DIR, config.assets) : '';
 
     if (!fs.existsSync(input)) {
         log.error(`Error: input directory does not exist at ${input}`);
@@ -166,7 +181,7 @@ function initConfig() {
     }
 
     if (!assets || !fs.existsSync(assets)) {
-        if (workingConfig.assets !== DEFAULT_CONFIG.assets) {
+        if (config.assets !== DEFAULT_CONFIG.assets) {
             log.error(`Error: assets directory does not exist at ${assets}`);
             process.exit(1);
         }
@@ -174,7 +189,7 @@ function initConfig() {
         log.gray(`Assets directory (${assets}) does not exist. Continuing without copying assets.`);
     }
 
-    return { directory: { input, output, assets }, config: workingConfig };
+    return { directory: { input, output, assets }, config };
 }
 
 function styleToCss(style: CSSProperties | undefined): string {
@@ -456,16 +471,18 @@ ${color.cyan}  tsx scratch.ts build${color.reset} — build for production
 // MAIN
 // ============================================================================
 
-(async () => {
-    const cmd = process.argv[2];
+if (import.meta.url === `file://${process.argv[1]}`) {
+    (async () => {
+        const cmd = process.argv[2];
 
-    if (['init', 'build', 'dev'].includes(cmd)) {
-        // @ts-expect-error - dynamic command execution
-        await { init, build, dev }[cmd]();
-    } else {
-        log.error('Usage: tsx scratch.ts build | dev');
-        process.exit(1);
-    }
-})();
+        if (['init', 'build', 'dev'].includes(cmd)) {
+            // @ts-expect-error - dynamic command execution
+            await { init, build, dev }[cmd]();
+        } else {
+            log.error('Usage: tsx scratch.ts build | dev');
+            process.exit(1);
+        }
+    })();
+}
 
 globalThis.jsx = jsx;

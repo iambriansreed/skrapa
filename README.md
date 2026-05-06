@@ -1,50 +1,66 @@
-# Scratch
+# Scratch.ts
 
-A minimal static site generator using TypeScript and a simple JSX factory that produces static HTML strings directly — no React, no virtual DOM.
+A minimal build tool and dev server for prototyping static sites with JSX. Write HTML structure in TypeScript — no React, no virtual DOM, no bundler config.
 
 ## How it works
 
-JSX in `src/` is transformed via a custom factory (`.sys/jsx.ts`) that renders to raw HTML strings at build time. The build script imports the page component directly, calls it, embeds the compiled client JS and CSS, and writes a single `dist/index.html`.
+JSX in `src/` renders to raw HTML strings at build time. Client JS and CSS are inlined, assets are copied, and everything ships as a single `dist/index.html`.
 
 ```
-src/index.tsx   →  Page() returns an HTML string
-src/client.ts   →  compiled by tsc, inlined into the HTML
-src/style.css   →  inlined into the HTML
-                         ↓
-                  dist/index.html
+src/index.tsx  →  Root() returns an HTML string
+src/client.ts  →  compiled and inlined as browser JS
+src/style.css  →  inlined into the HTML
+assets/        →  copied as-is to dist/
+                       ↓
+                 dist/index.html
 ```
 
-## Setup
+## Quick Start
 
 ```bash
-npm install
+curl -o scratch.ts https://iambrian.com/scratch
+npx tsx scratch.ts init
 ```
 
-## Development
+`init` creates `src/`, `assets/`, config files, tsconfigs for Node and browser, a GitHub Actions workflow for Pages, installs dependencies, and starts the dev server.
+
+## Commands
 
 ```bash
-npm run dev
+tsx scratch.ts init    # scaffold a new project
+tsx scratch.ts dev     # dev server with live reload
+tsx scratch.ts build   # production build
 ```
 
-Starts a local server at `http://localhost:3000`. The server watches `src/` for changes, runs the build, and triggers a live reload in the browser via WebSocket — no extra packages.
+## Configuration
 
-## Build
+`scratch.config.json` in the project root — all fields optional:
+
+```json
+{
+    "input": "src",
+    "output": "dist",
+    "assets": "assets",
+    "port": 8080
+}
+```
+
+| Field    | Default  | Description                                                |
+| -------- | -------- | ---------------------------------------------------------- |
+| `input`  | `src`    | Directory containing `index.tsx`, `client.ts`, `style.css` |
+| `output` | `dist`   | Build output directory                                     |
+| `assets` | `assets` | Static files copied as-is to output                        |
+| `port`   | `8080`   | Dev server port                                            |
+
+CLI flags override config file values:
 
 ```bash
-npm run build
+tsx scratch.ts dev --port 3000
+tsx scratch.ts build --input app --output public
 ```
 
-Runs `.sys/build.ts` which:
+## Assets
 
-1. Compiles `src/client.ts` with `tsc -p tsconfig.client.json`
-2. Calls `Page()` to get the HTML string
-3. Embeds the compiled JS and CSS into the HTML
-4. Formats the output with Prettier
-5. Writes `dist/index.html`
+Files in `assets/` are copied to `dist/` on every build. In dev mode they are watched — changes are copied immediately without a full rebuild.
 
-## Linting
-
-```bash
-npm run lint      # ESLint (TypeScript + React rules, flat config)
-npm run lint:css  # Stylelint
-```
+If the directory doesn't exist at the default path it is silently skipped; a custom path that doesn't exist is an error.

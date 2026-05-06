@@ -1,4 +1,4 @@
-# Scratch.ts
+# Scratch.ts `v1.0.0`
 
 A minimal build tool and dev server for prototyping static sites with JSX. Write HTML structure in TypeScript — no React, no virtual DOM, no bundler config.
 

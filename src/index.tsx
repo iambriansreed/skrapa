@@ -38,7 +38,7 @@ export function Root() {
                         <p>
                             Built with{' '}
                             <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
-                                Scratch.ts
+                                Scratch.ts v1.0.0
                             </a>
                         </p>
                         <p>

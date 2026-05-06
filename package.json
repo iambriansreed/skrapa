@@ -5,6 +5,7 @@
     "scripts": {
         "dev": "tsx scratch.ts dev",
         "build": "tsx scratch.ts build",
+        "postbuild": "cp scratch.ts dist/scratch.ts",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",
         "lint:css": "stylelint src/**/*.css",

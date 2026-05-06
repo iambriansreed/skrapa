@@ -19,7 +19,7 @@ export function Root() {
                         <h2>Get Started</h2>
                         <p>Download the script</p>
                         <pre>
-                            <code>curl -o scratch.ts https://example.com/scratch.ts</code>
+                            <code>curl -o scratch.ts https://iambrian.com/scratch/scratch.ts</code>
                         </pre>
                         <br />
                         <p>Initialize your project</p>

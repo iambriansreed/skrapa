@@ -431,21 +431,21 @@ export async function dev() {
 // ============================================================================
 
 export async function init() {
-    const root = (...paths: string[]) => path.join(ROOT_DIR, ...paths);
-    fs.mkdirSync(root('src'), { recursive: true });
-    fs.mkdirSync(root('assets'), { recursive: true });
-    fs.mkdirSync(root('.github/workflows'), { recursive: true });
+    const rootPath = (...paths: string[]) => path.join(ROOT_DIR, ...paths);
+    fs.mkdirSync(rootPath('src'), { recursive: true });
+    fs.mkdirSync(rootPath('assets'), { recursive: true });
+    fs.mkdirSync(rootPath('.github/workflows'), { recursive: true });
 
     /* FILE_CREATION_MAP > */
     const FILE_CREATION_MAP = {
-        "src/client.ts": `const btn = document.getElementById('counter') as HTMLButtonElement;
+        'src/client.ts': `const btn = document.getElementById('counter') as HTMLButtonElement;
 let count = 0;
 btn?.addEventListener('click', () => {
     count++;
     btn.textContent = \`count is \${count}\`;
 });
 `,
-        "src/index.tsx": `export function Root() {
+        'src/index.tsx': `export function Root() {
     return (
         <html lang="en">
             <head>
@@ -482,7 +482,7 @@ btn?.addEventListener('click', () => {
     );
 }
 `,
-        "src/style.css": `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        'src/style.css': `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; }
 
@@ -591,9 +591,9 @@ code {
     to { transform: rotate(360deg); }
 }
 `,
-        "assets/github.svg": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        'assets/github.svg': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
 `,
-        "assets/scratch.svg": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+        'assets/scratch.svg': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
     <line x1="135" y1="42" x2="62" y2="52" stroke="#000000" stroke-width="5" stroke-linecap="round" />
     <line x1="62" y1="52" x2="82" y2="102" stroke="#000000" stroke-width="5" stroke-linecap="round" />
     <line x1="82" y1="102" x2="132" y2="92" stroke="#000000" stroke-width="5" stroke-linecap="round" />
@@ -601,7 +601,7 @@ code {
     <line x1="118" y1="152" x2="62" y2="158" stroke="#000000" stroke-width="5" stroke-linecap="round" />
 </svg>
 `,
-        ".github/workflows/deploy.yml": `name: Deploy to GitHub Pages
+        '.github/workflows/deploy.yml': `name: Deploy to GitHub Pages
 on:
     push:
         branches: ['main']
@@ -638,11 +638,11 @@ jobs:
               id: deployment
               uses: actions/deploy-pages@v4
 `,
-        ".nvmrc": `24
+        '.nvmrc': `24
 `,
-        "scratch.config.json": `{ "input": "src", "output": "dist", "assets": "assets", "port": 8080 }
+        'scratch.config.json': `{ "input": "src", "output": "dist", "assets": "assets", "port": 8080 }
 `,
-        "tsconfig.client.json": `{
+        'tsconfig.client.json': `{
     "compilerOptions": {
         "target": "ES2020",
         "module": "ESNext",
@@ -659,7 +659,7 @@ jobs:
     "exclude": ["node_modules", "dist"]
 }
 `,
-        "tsconfig.json": `{
+        'tsconfig.json': `{
     "compilerOptions": {
         "target": "ES2020",
         "module": "ESNext",
@@ -679,28 +679,45 @@ jobs:
     "include": ["**/*.ts", "**/*.tsx"],
     "exclude": ["node_modules", "dist", "src/client.ts"]
 }
-`
+`,
     };
     /* < FILE_CREATION_MAP */
 
     const force = process.argv.includes('-f') || process.argv.includes('--force');
 
     Object.entries(FILE_CREATION_MAP).forEach(([file, content]) => {
-        if (!force && fs.existsSync(root(file))) return log.gray(`Skipped existing file: ${file}`);
-        fs.writeFileSync(root(file), content);
+        if (!force && fs.existsSync(rootPath(file))) return log.gray(`Skipped existing file: ${file}`);
+        fs.writeFileSync(rootPath(file), content);
     });
 
     // ensure package.json exists before installing
-    if (!fs.existsSync(root('package.json'))) {
+    if (!fs.existsSync(rootPath('package.json'))) {
         exe(`npm init -y`);
     }
 
     // install dependencies
     exe(`npm install --save-dev csstype typescript tsx @types/node`);
 
-    log.info(`\n Add these to your package.json under "scripts":\n`);
-    log.info(`  "dev": "tsx scratch.ts dev",`);
-    log.info(`  "build": "tsx scratch.ts build",\n`);
+    // add dev/build scripts if not already present
+    const pkgPath = rootPath('package.json');
+    const pkgRaw = fs.readFileSync(pkgPath, 'utf-8');
+    const pkgIndent = pkgRaw.match(/^([ \t]+)/m)?.[1] ?? '    ';
+    const pkg = JSON.parse(pkgRaw);
+    const scripts = pkg.scripts ?? {};
+    let scriptsUpdated = false;
+    if (!scripts.dev) {
+        scripts.dev = 'tsx scratch.ts dev';
+        scriptsUpdated = true;
+    }
+    if (!scripts.build) {
+        scripts.build = 'tsx scratch.ts build';
+        scriptsUpdated = true;
+    }
+    if (scriptsUpdated) {
+        pkg.scripts = scripts;
+        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, pkgIndent));
+        log.success('Added dev and build scripts to package.json');
+    }
 
     console.log(`
 ${color.green}╔══════════════════════════════════════╗

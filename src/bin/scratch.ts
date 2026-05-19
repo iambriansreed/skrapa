@@ -13,12 +13,13 @@
  *   npx stsx dev      # Dev server with HMR
  *
  */
-import { execSync, exec } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import http from 'http';
-import crypto from 'crypto';
-import type { Socket } from 'net';
+import { execSync, exec } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
+import crypto from 'node:crypto';
+import os from 'node:os';
+import type { Socket } from 'node:net';
 
 export const Fragment = 'Fragment';
 
@@ -438,17 +439,21 @@ export async function dev() {
         });
     }
 
+    const browserLockFile = path.join(os.tmpdir(), `stsx-dev-${config.port}.lock`);
+
     server.listen(config.port, () => {
         log.success(
             `\n⚡ ${color.cyan}http://localhost:${config.port}${color.reset}  ${color.gray}ctrl+C to stop${color.reset}\n`
         );
-        setTimeout(() => {
-            if (clients.size === 0) exe(`open http://localhost:${config.port}`);
-        }, 500);
+        if (!fs.existsSync(browserLockFile)) {
+            fs.writeFileSync(browserLockFile, '');
+            exe(`open http://localhost:${config.port}`);
+        }
     });
 
     process.on('SIGINT', () => {
         log.info('\nEnding dev mode...\n');
+        fs.rmSync(browserLockFile, { force: true });
         for (const socket of clients) socket.destroy();
         server.closeAllConnections();
         server.close(() => process.exit(0));

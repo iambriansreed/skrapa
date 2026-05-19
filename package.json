@@ -19,7 +19,7 @@
         "index.js"
     ],
     "bin": {
-        "stsx": "./bin/scratch.js"
+        "stsx": "bin/scratch.js"
     },
     "author": "",
     "license": "ISC",

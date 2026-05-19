@@ -493,9 +493,22 @@ export async function init() {
         fs.readFileSync(rootPath('src/index.tsx'), { encoding: 'utf-8' }).replace('v0.0.0', VERSION)
     );
 
-    // add .scratch to .gitignore
+    // ensure .scratch, node_modules, and dist are in .gitignore, creating it if needed
     const gitIgnorePath = rootPath('.gitignore');
-    const gitIgnoreContent = fs.readFileSync(gitIgnorePath, { encoding: 'utf-8' });
+    const gitIgnoreEntries = ['.scratch', 'node_modules', 'dist'];
+    if (fs.existsSync(gitIgnorePath)) {
+        const content = fs.readFileSync(gitIgnorePath, 'utf-8');
+        const existing = new Set(content.split('\n'));
+        const toAdd = gitIgnoreEntries.filter((e) => !existing.has(e));
+        if (toAdd.length > 0) {
+            fs.appendFileSync(
+                gitIgnorePath,
+                (content.endsWith('\n') ? '' : '\n') + toAdd.join('\n') + '\n'
+            );
+        }
+    } else {
+        fs.writeFileSync(gitIgnorePath, gitIgnoreEntries.join('\n') + '\n');
+    }
 
     // copy ./global.d.ts to  rootPath(relPath)
     const globalTypes = path.join(__dirname, '../global.d.ts');

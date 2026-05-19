@@ -7,10 +7,17 @@ document.querySelectorAll('pre').forEach((pre) => {
     btn.textContent = 'Copy';
     pre.appendChild(btn);
 
-    btn.addEventListener('click', () => {
+    const doCopy = () => {
         navigator.clipboard.writeText(code.textContent ?? '').then(() => {
             btn.textContent = 'Copied!';
-            setTimeout(() => (btn.textContent = 'Copy'), 2000);
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
         });
-    });
+    };
+
+    btn.addEventListener('click', (e) => { e.stopPropagation(); doCopy(); });
+    pre.addEventListener('click', doCopy);
 });

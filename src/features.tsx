@@ -32,12 +32,12 @@ const features = [
     {
         title: (
             <>
-                Devops Headaches
+                Zero Config
                 <br />
-                <i>Solved</i>
+                <i>Instant Setup</i>
             </>
         ),
-        desc: 'Drop in scratch.ts and run init — sane defaults get you building in seconds.',
+        desc: "Run npx stsx and you're building — sane defaults, nothing to configure.",
     },
 ];
 export function Features() {

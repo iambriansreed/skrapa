@@ -42,6 +42,7 @@ a {
     --text: #e8e8f0;
     --muted: #888899;
     --accent: #7c6af7;
+    --accent2: #888899;
 }
 @keyframes bg-spin {
     from {
@@ -67,7 +68,10 @@ body::before {
     animation-timeline: scroll();
 }
 body {
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
     font-size: 1.125rem;
     line-height: 1.6;
     color: var(--text);
@@ -85,8 +89,15 @@ header {
     gap: 1.75rem;
 }
 @keyframes logo-shimmer {
-    0%, 100% { color: var(--accent); opacity: 0.7; }
-    50% { color: color-mix(in srgb, var(--accent) 40%, #fff); opacity: 1; }
+    0%,
+    100% {
+        color: var(--accent);
+        opacity: 0.7;
+    }
+    50% {
+        color: color-mix(in srgb, var(--accent) 40%, #fff);
+        opacity: 1;
+    }
 }
 .logo {
     position: fixed;
@@ -96,8 +107,12 @@ header {
     animation: logo-shimmer 12s ease-in-out infinite;
 }
 @keyframes shimmer {
-    0% { background-position: -200% center; }
-    100% { background-position: 200% center; }
+    0% {
+        background-position: -200% center;
+    }
+    100% {
+        background-position: 200% center;
+    }
 }
 h1 {
     font-size: 3.9rem;
@@ -116,20 +131,8 @@ h1 {
     color: var(--muted);
     max-width: 38ch;
 }
-.hero-cmd {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 0.75rem 5.5rem 0.75rem 3rem;
-    font-family: ui-monospace, monospace;
-    font-size: 1.25rem;
-    color: var(--accent);
-    letter-spacing: 0.02em;
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-.hero-cmd:hover {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
+pre.cli.hero-cmd {
+    font-size: 120%;
 }
 .github-link {
     position: fixed;
@@ -139,8 +142,12 @@ h1 {
     transition: opacity 0.15s;
     z-index: 10;
 }
-.github-link:hover { opacity: 1; }
-.github-link img { filter: invert(1); }
+.github-link:hover {
+    opacity: 1;
+}
+.github-link img {
+    filter: invert(1);
+}
 main {
     flex: 1;
     width: 100%;
@@ -192,14 +199,6 @@ h2 {
     color: var(--muted);
     line-height: 1.5;
 }
-pre {
-    position: relative;
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-.getting-started pre:hover {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-}
 .copy-btn {
     position: absolute;
     top: 50%;
@@ -213,22 +212,42 @@ pre {
     border: 1px solid var(--border);
     border-radius: 4px;
     cursor: pointer;
-    transition: color 0.15s, background 0.15s;
+    transition:
+        color 0.15s,
+        background 0.15s;
 }
-.copy-btn:hover {
+.copy-btn:hover,
+.copy-btn.copied {
     background: var(--accent);
     color: #fff;
     border-color: var(--accent);
 }
-.getting-started pre {
+pre.cli {
+    cursor: pointer;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 1rem 4rem 1rem 1.5rem;
+    padding: 0.9em 5em 0.9em 2.5em;
     font-family: ui-monospace, monospace;
     font-size: 0.95rem;
     color: var(--accent);
     overflow-x: auto;
+    position: relative;
+    transition:
+        border-color 0.15s,
+        box-shadow 0.15s;
+
+    &::before {
+        content: '$';
+        margin-left: -1.5em;
+        margin-right: 0.5em;
+        color: var(--accent2);
+    }
+
+    &:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+    }
 }
 footer {
     font-size: 0.85rem;
@@ -297,7 +316,7 @@ footer {
     background: var(--bg);
     border: 1px solid var(--accent);
     border-radius: 6px;
-    flex-shrink: 0;
+    flex: 0 0 35%;
     align-self: stretch;
 }
 .arch-output-name {
@@ -310,12 +329,12 @@ footer {
     font-size: 0.75rem;
     color: var(--muted);
 }
-.arch-output--copy {
+/* .arch-output--copy {
     border-color: var(--border);
 }
 .arch-output--copy .arch-output-name {
     color: var(--muted);
-}
+} */
 .req-list {
     list-style: none;
     display: flex;
@@ -345,9 +364,9 @@ footer {
     background: color-mix(in srgb, var(--accent) 15%, transparent);
     padding: 0.2rem 0.6rem;
     border-radius: 5px;
-    margin-right: auto;
 }
 .req-desc {
+    margin-left: auto;
     font-size: 0.875rem;
     color: var(--muted);
 }

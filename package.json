@@ -1,26 +1,36 @@
 {
-    "name": "scratch",
-    "version": "1.0.0",
+    "name": "stsx",
+    "version": "0.0.9",
     "main": "index.js",
     "scripts": {
-        "dev": "tsx scratch.ts dev",
-        "build": "tsx scratch.ts build",
-        "postbuild": "cp scratch.ts dist/s",
-        "postversion": "tsx version.ts && git add scratch.ts src/index.tsx README.md",
+        "dev": "npx tsx src/dev.ts",
+        "build": "tsc",
+        "prepack": "chmod +x bin/scratch.js",
+        "postversion": "npx tsx version.ts && git add scratch.ts src/index.tsx README.md",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",
         "lint:css": "stylelint src/**/*.css",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "pack": "npm pack && mv stsx-*.tgz ../ && cd .. && tar -xzf stsx-*.tgz && cd package && npm link"
+    },
+    "files": [
+        "bin/",
+        "template/",
+        "index.js"
+    ],
+    "bin": {
+        "stsx": "./bin/scratch.js"
     },
     "author": "",
     "license": "ISC",
     "devDependencies": {
         "@types/node": "^25.6.0",
-        "csstype": "^3.2.3",
         "tsx": "^4.21.0",
         "typescript": "^6.0.3"
     },
-    "engines": { "node": ">=24" },
+    "engines": {
+        "node": ">=24"
+    },
     "keywords": [],
     "description": ""
 }

@@ -1,4 +1,6 @@
 node_modules
 dist
-x.ts
+bin
+!src/*
+index.js
 .scratch

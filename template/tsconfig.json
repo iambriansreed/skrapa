@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "CommonJS",
+        "jsx": "react",
+        "jsxFactory": "jsx",
+        "jsxFragmentFactory": "Fragment",
+        "strict": true,
+        "esModuleInterop": true,
+        "outDir": "./.scratch",
+        "rootDir": "./"
+    },
+    "exclude": ["src/client.ts"]
+}

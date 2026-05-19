@@ -2,5 +2,5 @@
     "input": "src",
     "output": "dist",
     "assets": "assets",
-    "port": 8090
+    "port": 8080
 }

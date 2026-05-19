@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "target": "ES2020",
-        "module": "CommonJS",
+        "module": "commonjs",
         "jsx": "react",
         "jsxFactory": "jsx",
         "jsxFragmentFactory": "Fragment",
@@ -9,12 +9,14 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "outDir": "./.scratch",
-        "rootDir": "./",
+        "declaration": true,
+        "outDir": "../../bin",
+        "rootDir": ".",
         "lib": ["ES2020"],
         "types": ["node"],
-        "typeRoots": ["./node_modules/@types"]
+        "typeRoots": ["../../node_modules/@types"],
+        "sourceMap": true
     },
-    "include": ["**/*.ts", "**/*.tsx"],
-    "exclude": ["node_modules", "dist", "template","bin", "build", "src/client.ts"]
+    "include": ["./**/*.ts", "../../global.d.ts"],
+    "exclude": ["../../node_modules", "../../bin", "../src/client.ts"]
 }

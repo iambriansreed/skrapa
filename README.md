@@ -1,4 +1,4 @@
-# Scratch.ts `v1.0.0`
+# Scratch.ts `v0.0.0`
 
 A minimal build tool and dev server for prototyping static sites with JSX. Write HTML structure in TypeScript — no React, no virtual DOM, no bundler config.
 
@@ -18,8 +18,7 @@ assets/        →  copied as-is to dist/
 ## Quick Start
 
 ```bash
-curl -Lo scratch.ts https://s.iamb.dev
-npx tsx scratch.ts init
+npx stsx init
 ```
 
 `init` creates the following files, installs dependencies, and starts the dev server:
@@ -32,16 +31,16 @@ src/style.css                    # styles
 assets/scratch.svg               # logo
 .github/workflows/deploy.yml     # GitHub Pages deploy action
 scratch.config.json              # project config
-tsconfig.json                    # Node/build TypeScript config
+tsconfig.json                    # Node build TypeScript config
 tsconfig.client.json             # browser TypeScript config
 ```
 
 ## Commands
 
 ```bash
-tsx scratch.ts init    # scaffold a new project
-tsx scratch.ts dev     # dev server with live reload
-tsx scratch.ts build   # production build
+npx stsx init    # scaffold a new project
+npx stsx dev     # dev server with live reload
+npx stsx build   # production build
 ```
 
 ## Configuration
@@ -67,8 +66,8 @@ tsx scratch.ts build   # production build
 CLI flags override config file values:
 
 ```bash
-tsx scratch.ts dev --port 3000
-tsx scratch.ts build --input app --output public
+npx stsx dev --port 3000
+npx stsx build --input app --output public
 ```
 
 ## Assets

@@ -18,7 +18,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import crypto from 'node:crypto';
-import os from 'node:os';
 import type { Socket } from 'node:net';
 
 export const Fragment = 'Fragment';
@@ -353,11 +352,28 @@ export async function dev() {
             <script>
               (function() {
                 let reconnecting = false;
+                let overlay = null;
+                function showOverlay() {
+                  if (overlay) return;
+                  overlay = document.createElement('div');
+                  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);color:#fff;display:flex;align-items:center;justify-content:center;font:24px/1 monospace;z-index:99999';
+                  overlay.innerHTML = 'Reconnecting<span id="_d1" style="animation:blink 1s step-start infinite">.</span><span id="_d2" style="animation:blink 1s step-start infinite 0.33s">.</span><span id="_d3" style="animation:blink 1s step-start infinite 0.66s">.</span>';
+                  const style = document.createElement('style');
+                  style.textContent = '@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}';
+                  overlay.appendChild(style);
+                  document.body.appendChild(overlay);
+                }
+                function showReconnected() {
+                  if (overlay) { overlay.innerHTML = '✓ Reconnected'; overlay.style.background = 'rgba(0,120,0,0.7)'; }
+                }
+                function hideOverlay() {
+                  if (overlay) { overlay.remove(); overlay = null; }
+                }
                 function connect() {
                   const ws = new WebSocket('ws://localhost:${config.port}/hmr');
-                  ws.onopen = () => { if (reconnecting) window.location.reload(); };
+                  ws.onopen = () => { if (reconnecting) { showReconnected(); setTimeout(() => { hideOverlay(); window.location.reload(); }, 600); } };
                   ws.onmessage = (event) => { if (event.data === 'reload') window.location.reload(); };
-                  ws.onclose = () => { reconnecting = true; setTimeout(connect, 1000); };
+                  ws.onclose = () => { reconnecting = true; showOverlay(); setTimeout(connect, 1000); };
                 }
                 connect();
               })();
@@ -439,21 +455,17 @@ export async function dev() {
         });
     }
 
-    const browserLockFile = path.join(os.tmpdir(), `stsx-dev-${config.port}.lock`);
-
     server.listen(config.port, () => {
         log.success(
             `\n⚡ ${color.cyan}http://localhost:${config.port}${color.reset}  ${color.gray}ctrl+C to stop${color.reset}\n`
         );
-        if (!fs.existsSync(browserLockFile)) {
-            fs.writeFileSync(browserLockFile, '');
-            exe(`open http://localhost:${config.port}`);
-        }
+        setTimeout(() => {
+            if (clients.size === 0) exe(`open http://localhost:${config.port}`);
+        }, 1500);
     });
 
     process.on('SIGINT', () => {
         log.info('\nEnding dev mode...\n');
-        fs.rmSync(browserLockFile, { force: true });
         for (const socket of clients) socket.destroy();
         server.closeAllConnections();
         server.close(() => process.exit(0));

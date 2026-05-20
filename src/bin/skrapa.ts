@@ -3,14 +3,14 @@
 /**
  * scratch.ts
  *
- * Scratch.tsx is a simple build tool and dev server for quickly prototyping static HTML/CSS/JS projects using a custom JSX runtime. It allows you to write your HTML structure in TypeScript with JSX syntax, and then compiles it into a static index.html file with embedded CSS and JS. It also supports an optional assets directory for static files like images or fonts.
+ * Skrapa is a simple build tool and dev server for quickly prototyping static HTML/CSS/JS projects using a custom JSX runtime. It allows you to write your HTML structure in TypeScript with JSX syntax, and then compiles it into a static index.html file with embedded CSS and JS. It also supports an optional assets directory for static files like images or fonts.
  *
  * Dev mode runs a local server on port 8080 with live reload via WebSocket. File changes in the input directory trigger automatic rebuilds, and asset changes are copied on-the-fly, providing instant feedback during development.
  *
  * Usage:
- *   npx stsx init     # Set up a new Scratch project
- *   npx stsx build    # Build once
- *   npx stsx dev      # Dev server with HMR
+ *   npx skrapa init     # Set up a new Skrapa project
+ *   npx skrapa build    # Build once
+ *   npx skrapa dev      # Dev server with HMR
  *
  */
 import { execSync, exec } from 'node:child_process';
@@ -188,7 +188,7 @@ const log = {
 
 const ROOT_DIR = process.cwd();
 
-const WORKING_DIR = path.join(ROOT_DIR, '.scratch');
+const WORKING_DIR = path.join(ROOT_DIR, '.skrapa');
 
 function parseFlags(): Partial<Config> {
     const args = process.argv.slice(3);
@@ -204,9 +204,9 @@ function parseFlags(): Partial<Config> {
 }
 
 function initConfig() {
-    log.info(`Scratch.tsx v${VERSION}\n`);
+    log.info(`Skrapa v${VERSION}\n`);
 
-    const configPath = path.resolve(ROOT_DIR, 'scratch.config.json');
+    const configPath = path.resolve(ROOT_DIR, 'skrapa.config.json');
     const flagConfig = parseFlags();
 
     let config: Config = { ...DEFAULT_CONFIG };
@@ -454,7 +454,7 @@ export async function dev() {
         if (buildTimer) clearTimeout(buildTimer);
         buildTimer = setTimeout(() => {
             exec(
-                `npx stsx build skip-assets && npm run --if-present postbuild-scratch`,
+                `npx skrapa build skip-assets && npm run --if-present postbuild-skrapa`,
                 (error) => {
                     if (error) {
                         log.error(`Build failed: ${error.message}`);
@@ -502,7 +502,7 @@ export async function dev() {
 // ============================================================================
 
 export async function init() {
-    console.log(`\n${color.cyan}Scratch.tsx${color.reset} ${color.gray}v${VERSION}${color.reset}`);
+    console.log(`\n${color.cyan}Skrapa${color.reset} ${color.gray}v${VERSION}${color.reset}`);
     log.gray('Initializing...\n');
 
     const rootPath = (...paths: string[]) => path.join(ROOT_DIR, ...paths);
@@ -520,7 +520,7 @@ export async function init() {
 
     // ensure .scratch, node_modules, and dist are in .gitignore, creating it if needed
     const gitIgnorePath = rootPath('.gitignore');
-    const gitIgnoreEntries = ['.scratch', 'node_modules', 'dist'];
+    const gitIgnoreEntries = ['.skrapa', 'node_modules', 'dist'];
     if (fs.existsSync(gitIgnorePath)) {
         const content = fs.readFileSync(gitIgnorePath, 'utf-8');
         const existing = new Set(content.split('\n'));
@@ -554,11 +554,11 @@ export async function init() {
 
     // add dev/build scripts if not already present
     if (!pkg.scripts.dev) {
-        pkg.scripts.dev = 'npx stsx dev';
+        pkg.scripts.dev = 'npx skrapa dev';
         pkgJsonUpdated = true;
     }
     if (!pkg.scripts.build) {
-        pkg.scripts.build = 'npx stsx build';
+        pkg.scripts.build = 'npx skrapa build';
         pkgJsonUpdated = true;
     }
 
@@ -576,17 +576,17 @@ export async function init() {
     exe(`npm install --save-dev typescript`);
 
     log.success('\nProject initialized.\n');
-    console.log(`${color.cyan}  npx stsx dev${color.reset}   — start dev server`);
-    console.log(`${color.cyan}  npx stsx build${color.reset} — build for production\n`);
-    exe('npx stsx dev');
+    console.log(`${color.cyan}  npx skrapa dev${color.reset}   — start dev server`);
+    console.log(`${color.cyan}  npx skrapa build${color.reset} — build for production\n`);
+    exe('npx skrapa dev');
 }
 
 // ============================================================================
 // MAIN
 // ============================================================================
 
-// check if scratch.config.json exists
-const initiated = fs.existsSync(path.resolve(ROOT_DIR, 'scratch.config.json'));
+// check if skrapa.config.json exists
+const initiated = fs.existsSync(path.resolve(ROOT_DIR, 'skrapa.config.json'));
 
 (async () => {
     const cmd = process.argv[2] || (!initiated && 'init') || '';
@@ -595,7 +595,7 @@ const initiated = fs.existsSync(path.resolve(ROOT_DIR, 'scratch.config.json'));
         // @ts-expect-error - dynamic command execution
         await { init, build, dev }[cmd]();
     } else {
-        log.error('Usage: npx scratch init | build | dev');
+        log.error('Usage: npx skrapa init | build | dev');
         process.exit(1);
     }
 })();

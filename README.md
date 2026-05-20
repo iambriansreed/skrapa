@@ -1,4 +1,4 @@
-# Scratch.tsx
+# Skrapa
 
 Build static sites with TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config.
 
@@ -20,13 +20,13 @@ assets/        →  copied as-is to dist/
 ## Quick Start
 
 ```bash
-npx stsx
+npx skrapa
 ```
 
 Scaffolds a new project, installs dependencies, and starts the dev server. Then when you're ready:
 
 ```bash
-npx stsx build
+npx skrapa build
 ```
 
 Builds to `dist/index.html` — HTML, CSS, and JS in a single file ready to deploy.
@@ -40,8 +40,8 @@ src/button.tsx           # example component
 src/client.ts            # browser JS entry point
 src/index.tsx            # root JSX component
 src/style.css            # styles
-assets/scratch.svg       # logo
-scratch.config.json      # project config
+assets/skrapa.svg       # logo
+skrapa.config.json      # project config
 tsconfig.json            # TypeScript config
 tsconfig.client.json     # browser TypeScript config
 ```
@@ -49,14 +49,14 @@ tsconfig.client.json     # browser TypeScript config
 ## Commands
 
 ```bash
-npx stsx            # scaffold a new project
-npx stsx dev        # dev server with live reload
-npx stsx build      # production build
+npx skrapa            # scaffold a new project
+npx skrapa dev        # dev server with live reload
+npx skrapa build      # production build
 ```
 
 ## Configuration
 
-`scratch.config.json` in the project root — all fields optional:
+`skrapa.config.json` in the project root — all fields optional:
 
 ```json
 {
@@ -77,6 +77,6 @@ npx stsx build      # production build
 CLI flags override config file values:
 
 ```bash
-npx stsx dev --port 3000
-npx stsx build --input app --output public
+npx skrapa dev --port 3000
+npx skrapa build --input app --output public
 ```

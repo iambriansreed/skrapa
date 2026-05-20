@@ -6,7 +6,7 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "outDir": "./.scratch",
+        "outDir": "./.skrapa",
         "rootDir": "./",
         "lib": ["DOM", "DOM.Iterable", "ES2020"],
         "moduleResolution": "bundler"

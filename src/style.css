@@ -59,7 +59,7 @@ body::before {
     right: -10%;
     width: 70vmin;
     height: 70vmin;
-    background: url(scratch.svg) center / contain no-repeat;
+    background: url(skrapa.svg) center / contain no-repeat;
     filter: invert(1);
     opacity: 0.04;
     pointer-events: none;

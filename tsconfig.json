@@ -9,7 +9,7 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "outDir": "./.scratch",
+        "outDir": "./.skrapa",
         "rootDir": "./",
         "lib": ["ES2020"],
         "types": ["node"],

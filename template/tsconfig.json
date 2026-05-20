@@ -7,7 +7,7 @@
         "jsxFragmentFactory": "Fragment",
         "strict": true,
         "esModuleInterop": true,
-        "outDir": "./.scratch",
+        "outDir": "./.skrapa",
         "rootDir": "./"
     },
     "exclude": ["src/client.ts"]

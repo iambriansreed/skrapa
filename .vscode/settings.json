@@ -5,5 +5,5 @@
     },
     "eslint.run": "onType",
     "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-    "cSpell.words": ["stsx"]
+    "cSpell.words": ["skrapa"]
 }

@@ -27,7 +27,7 @@ jobs:
               with:
                   node-version: '24'
             - name: Build project
-              run: npm ci && npm run build && node bin/scratch.js build
+              run: npm ci && npm run build && node bin/skrapa.js build
             - name: Upload artifact
               uses: actions/upload-pages-artifact@v3
               with:

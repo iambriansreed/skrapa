@@ -1,17 +1,17 @@
 {
-    "name": "stsx",
-    "version": "0.1.0",
+    "name": "skrapa",
+    "version": "0.2.0",
     "main": "index.js",
     "scripts": {
         "dev": "npx tsx src/dev.ts",
-        "build": "tsc && mkdir -p bin && cp .scratch/src/bin/scratch.js bin/scratch.js",
-        "postbuild": "chmod +x bin/scratch.js",
+        "build": "tsc && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js",
+        "postbuild": "chmod +x bin/skrapa.js",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",
         "lint:css": "stylelint src/**/*.css",
         "test": "echo \"Error: no test specified\" && exit 1",
-        "clean": "rm -rf dist bin .scratch",
-        "dev-pack": "npm run build && npm pack && rm -f ../stsx-*.tgz && mv stsx-*.tgz ../ && cd .. && rm -rf package && tar -xzf stsx-*.tgz && cd package && npm link"
+        "clean": "rm -rf dist bin .skrapa",
+        "dev-pack": "npm run build && npm pack && rm -f ../skrapa-*.tgz && mv skrapa-*.tgz ../ && cd .. && rm -rf package && tar -xzf skrapa-*.tgz && cd package && npm link"
     },
     "files": [
         "bin/",
@@ -20,7 +20,7 @@
         "global.d.ts"
     ],
     "bin": {
-        "stsx": "bin/scratch.js"
+        "skrapa": "bin/skrapa.js"
     },
     "author": "",
     "license": "ISC",

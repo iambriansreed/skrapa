@@ -6,7 +6,7 @@ export function Root() {
             <head>
                 <meta charset="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>Scratch.tsx</title>
+                <title>Skrapa</title>
             </head>
             <body>
                 <svg
@@ -15,53 +15,13 @@ export function Root() {
                     viewBox="0 0 200 200"
                     width="42"
                     height="42"
-                    aria-label="Scratch Logo"
+                    aria-label="Skrapa Logo"
                 >
-                    <line
-                        x1="135"
-                        y1="42"
-                        x2="62"
-                        y2="52"
-                        stroke="currentColor"
-                        stroke-width="5"
-                        stroke-linecap="round"
-                    />
-                    <line
-                        x1="62"
-                        y1="52"
-                        x2="82"
-                        y2="102"
-                        stroke="currentColor"
-                        stroke-width="5"
-                        stroke-linecap="round"
-                    />
-                    <line
-                        x1="82"
-                        y1="102"
-                        x2="132"
-                        y2="92"
-                        stroke="currentColor"
-                        stroke-width="5"
-                        stroke-linecap="round"
-                    />
-                    <line
-                        x1="132"
-                        y1="92"
-                        x2="118"
-                        y2="152"
-                        stroke="currentColor"
-                        stroke-width="5"
-                        stroke-linecap="round"
-                    />
-                    <line
-                        x1="118"
-                        y1="152"
-                        x2="62"
-                        y2="158"
-                        stroke="currentColor"
-                        stroke-width="5"
-                        stroke-linecap="round"
-                    />
+                    <line x1="135" y1="42" x2="62" y2="52" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
+                    <line x1="62" y1="52" x2="82" y2="102" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
+                    <line x1="82" y1="102" x2="132" y2="92" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
+                    <line x1="132" y1="92" x2="118" y2="152" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
+                    <line x1="118" y1="152" x2="62" y2="158" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
                 </svg>
                 <a
                     class="github-link"
@@ -73,10 +33,10 @@ export function Root() {
                     <img src="github.svg" alt="GitHub" width="22" height="22" />
                 </a>
                 <header>
-                    <h1>Scratch.tsx</h1>
+                    <h1>Skrapa</h1>
                     <p class="tagline">TypeScript JSX templates. Static HTML output.</p>
                     <pre class="cli hero-cmd">
-                        <code>npx stsx</code>
+                        <code>npx skrapa</code>
                     </pre>
                 </header>
                 <main>
@@ -85,15 +45,15 @@ export function Root() {
                         <h2>Get Started</h2>
                         <p>Initialize your project</p>
                         <pre class="cli">
-                            <code>npx stsx</code>
+                            <code>npx skrapa</code>
                         </pre>
                         <p>Start the dev server</p>
                         <pre class="cli">
-                            <code>npx stsx dev</code>
+                            <code>npx skrapa dev</code>
                         </pre>
                         <p>Build for production</p>
                         <pre class="cli">
-                            <code>npx stsx build</code>
+                            <code>npx skrapa build</code>
                         </pre>
                         <p>
                             A GitHub Pages deploy action is included — push to <code>main</code> and
@@ -180,7 +140,7 @@ export function Root() {
                         <p>
                             Built with{' '}
                             <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
-                                Scratch.tsx v{VERSION}
+                                Skrapa v{VERSION}
                             </a>
                         </p>
                         <p>

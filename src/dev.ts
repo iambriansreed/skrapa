@@ -11,8 +11,8 @@ function start() {
         server.kill();
         server = null;
     }
-    execSync('cp .scratch/src/bin/scratch.js bin/scratch.js', { stdio: 'inherit' });
-    server = exec(`node bin/scratch.js dev`, { stdio: 'inherit' } as any);
+    execSync('mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js', { stdio: 'inherit' });
+    server = exec(`node bin/skrapa.js dev`, { stdio: 'inherit' } as any);
     server.stdout?.pipe(process.stdout);
     server.stderr?.pipe(process.stderr);
 }

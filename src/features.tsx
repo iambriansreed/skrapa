@@ -37,7 +37,7 @@ const features = [
                 <i>Instant Setup</i>
             </>
         ),
-        desc: "Run npx stsx and you're building — sane defaults, nothing to configure.",
+        desc: "Run npx skrapa and you're building — sane defaults, nothing to configure.",
     },
 ];
 export function Features() {

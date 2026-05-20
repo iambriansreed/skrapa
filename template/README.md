@@ -1,6 +1,6 @@
-# Scratch.tsx (sstx)
+# Skrapa (sstx)
 
-A minimal static site built with [Scratch.tsx](https://iambrian.com/scratch) — native TypeScript, JSX without the framework overhead, live reload, and a single `dist/index.html` deployable to GitHub Pages via built-in Actions workflow.
+A minimal static site built with [Skrapa](https://iambrian.com/scratch) — native TypeScript, JSX without the framework overhead, live reload, and a single `dist/index.html` deployable to GitHub Pages via built-in Actions workflow.
 
 ## Project structure
 

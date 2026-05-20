@@ -19,22 +19,20 @@ export function Root() {
                     <img src="github.svg" alt="GitHub" width="22" height="22" />
                 </a>
                 <div class="center">
-                    <img
-                        src="scratch.svg"
-                        class="logo"
-                        alt="Scratch.ts Logo"
-                        width="80"
-                        height="80"
-                    />
+                    <img src="scratch.svg" class="logo" alt="Scratch.ts Logo" width="80" height="80" />
                     <h1>Scratch.ts</h1>
                     <Button />
                     <p class="hint">
-                        Edit <code>src/index.tsx</code> and save to test live reload
+                        Edit <code>src/index.tsx</code> or <code>src/button.tsx</code> and save to test live
+                        reload
                     </p>
                     <p class="sub">
-                        Built with{' '}
                         <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
-                            Scratch.ts v0.0.0
+                            Scratch.ts v{VERSION}
+                        </a>{' '}
+                        is made with ♥ by{' '}
+                        <a href="https://iambrian.com" target="_blank" rel="noopener">
+                            iambrian.com
                         </a>
                     </p>
                 </div>

@@ -74,7 +74,7 @@ export function Root() {
                 </a>
                 <header>
                     <h1>Scratch.tsx</h1>
-                    <p class="tagline">TypeScript JSX templates. Static HTML output. No devops!</p>
+                    <p class="tagline">TypeScript JSX templates. Static HTML output.</p>
                     <pre class="cli hero-cmd">
                         <code>npx stsx</code>
                     </pre>
@@ -91,6 +91,14 @@ export function Root() {
                         <pre class="cli">
                             <code>npx stsx dev</code>
                         </pre>
+                        <p>Build for production</p>
+                        <pre class="cli">
+                            <code>npx stsx build</code>
+                        </pre>
+                        <p>
+                            A GitHub Pages deploy action is included — push to <code>main</code> and
+                            your site deploys automatically.
+                        </p>
                     </section>
                     <section class="how-it-works">
                         <h2>How it works</h2>

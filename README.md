@@ -23,7 +23,17 @@ assets/        →  copied as-is to dist/
 npx stsx
 ```
 
-Scaffolds a new project, installs dependencies, and starts the dev server. Creates:
+Scaffolds a new project, installs dependencies, and starts the dev server. Then when you're ready:
+
+```bash
+npx stsx build
+```
+
+Builds to `dist/index.html` — HTML, CSS, and JS in a single file ready to deploy.
+
+---
+
+Creates:
 
 ```
 src/button.tsx           # example component

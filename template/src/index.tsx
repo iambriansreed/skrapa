@@ -6,7 +6,7 @@ export function Root() {
             <head>
                 <meta charset="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>Scratch.ts</title>
+                <title>Scratch.tsx</title>
             </head>
             <body>
                 <a
@@ -19,8 +19,8 @@ export function Root() {
                     <img src="github.svg" alt="GitHub" width="22" height="22" />
                 </a>
                 <div class="center">
-                    <img src="scratch.svg" class="logo" alt="Scratch.ts Logo" width="80" height="80" />
-                    <h1>Scratch.ts</h1>
+                    <img src="scratch.svg" class="logo" alt="Scratch.tsx Logo" width="80" height="80" />
+                    <h1>Scratch.tsx</h1>
                     <Button />
                     <p class="hint">
                         Edit <code>src/index.tsx</code> or <code>src/button.tsx</code> and save to test live
@@ -28,7 +28,7 @@ export function Root() {
                     </p>
                     <p class="sub">
                         <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
-                            Scratch.ts v{VERSION}
+                            Scratch.tsx v{VERSION}
                         </a>{' '}
                         is made with ♥ by{' '}
                         <a href="https://iambrian.com" target="_blank" rel="noopener">

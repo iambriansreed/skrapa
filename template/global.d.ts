@@ -18,6 +18,7 @@ declare global {
     function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]): string;
 
     var Fragment: 'Fragment';
+    var VERSION: string;
 
     namespace JSX {
         interface IntrinsicElements {

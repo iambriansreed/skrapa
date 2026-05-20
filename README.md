@@ -1,10 +1,12 @@
-# Scratch.ts `v0.0.0`
+# Scratch.tsx
 
-A minimal build tool and dev server for prototyping static sites with JSX. Write HTML structure in TypeScript — no React, no virtual DOM, no bundler config.
+Build static sites with TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config.
+
+Requires Node.js v24+.
 
 ## How it works
 
-JSX in `src/` renders to raw HTML strings at build time. Client JS and CSS are inlined, assets are copied, and everything ships as a single `dist/index.html`.
+JSX in `src/` renders to raw HTML strings at build time. Client JS and CSS are inlined, assets are copied as-is, and everything ships as a single `dist/index.html`.
 
 ```
 src/index.tsx  →  Root() returns an HTML string
@@ -18,29 +20,28 @@ assets/        →  copied as-is to dist/
 ## Quick Start
 
 ```bash
-npx stsx init
+npx stsx
 ```
 
-`init` creates the following files, installs dependencies, and starts the dev server:
+Scaffolds a new project, installs dependencies, and starts the dev server. Creates:
 
 ```
-src/client.ts                    # browser JS entry point
-src/features.tsx                 # example component
-src/index.tsx                    # root JSX component
-src/style.css                    # styles
-assets/scratch.svg               # logo
-.github/workflows/deploy.yml     # GitHub Pages deploy action
-scratch.config.json              # project config
-tsconfig.json                    # Node build TypeScript config
-tsconfig.client.json             # browser TypeScript config
+src/button.tsx           # example component
+src/client.ts            # browser JS entry point
+src/index.tsx            # root JSX component
+src/style.css            # styles
+assets/scratch.svg       # logo
+scratch.config.json      # project config
+tsconfig.json            # TypeScript config
+tsconfig.client.json     # browser TypeScript config
 ```
 
 ## Commands
 
 ```bash
-npx stsx init    # scaffold a new project
-npx stsx dev     # dev server with live reload
-npx stsx build   # production build
+npx stsx            # scaffold a new project
+npx stsx dev        # dev server with live reload
+npx stsx build      # production build
 ```
 
 ## Configuration
@@ -56,12 +57,12 @@ npx stsx build   # production build
 }
 ```
 
-| Field    | Default  | Description                                                |
-| -------- | -------- | ---------------------------------------------------------- |
-| `input`  | `src`    | Directory containing `index.tsx`, `client.ts`, `style.css` |
-| `output` | `dist`   | Build output directory                                     |
-| `assets` | `assets` | Static files copied as-is to output                        |
-| `port`   | `8080`   | Dev server port                                            |
+| Field    | Default  | Description                                                 |
+| -------- | -------- | ----------------------------------------------------------- |
+| `input`  | `src`    | Directory containing `index.tsx`, `client.ts`, `style.css`  |
+| `output` | `dist`   | Build output directory                                      |
+| `assets` | `assets` | Static files copied as-is to output; skipped if not present |
+| `port`   | `8080`   | Dev server port                                             |
 
 CLI flags override config file values:
 
@@ -69,9 +70,3 @@ CLI flags override config file values:
 npx stsx dev --port 3000
 npx stsx build --input app --output public
 ```
-
-## Assets
-
-Files in `assets/` are copied to `dist/` on every build. In dev mode they are watched — changes are copied immediately without a full rebuild.
-
-If the directory doesn't exist at the default path it is silently skipped; a custom path that doesn't exist is an error.

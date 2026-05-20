@@ -4,14 +4,14 @@
     "main": "index.js",
     "scripts": {
         "dev": "npx tsx src/dev.ts",
-        "build": "tsc && tsc -p src/bin/tsconfig.json",
-        "prepack": "chmod +x bin/scratch.js",
-        "postversion": "npx tsx version.ts && git add scratch.ts src/index.tsx README.md",
+        "build": "tsc && cp .scratch/src/bin/scratch.js bin/scratch.js",
+        "postbuild": "chmod +x bin/scratch.js",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",
         "lint:css": "stylelint src/**/*.css",
         "test": "echo \"Error: no test specified\" && exit 1",
-        "pack": "npm run build && npm pack && rm -f ../stsx-*.tgz && mv stsx-*.tgz ../ && cd .. && rm -rf package && tar -xzf stsx-*.tgz && cd package && npm link"
+        "clean": "rm -rf dist bin .scratch",
+        "dev-pack": "npm run build && npm pack && rm -f ../stsx-*.tgz && mv stsx-*.tgz ../ && cd .. && rm -rf package && tar -xzf stsx-*.tgz && cd package && npm link"
     },
     "files": [
         "bin/",
@@ -33,5 +33,5 @@
         "node": ">=24"
     },
     "keywords": [],
-    "description": ""
+    "description": "Build static sites with TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config."
 }

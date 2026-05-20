@@ -6,7 +6,7 @@ export function Root() {
             <head>
                 <meta charset="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>Scratch.ts</title>
+                <title>Scratch.tsx</title>
             </head>
             <body>
                 <svg
@@ -73,8 +73,8 @@ export function Root() {
                     <img src="github.svg" alt="GitHub" width="22" height="22" />
                 </a>
                 <header>
-                    <h1>Scratch.ts</h1>
-                    <p class="tagline">A minimal JSX build tool for rapid prototyping</p>
+                    <h1>Scratch.tsx</h1>
+                    <p class="tagline">TypeScript JSX templates. Static HTML output. No devops!</p>
                     <pre class="cli hero-cmd">
                         <code>npx stsx</code>
                     </pre>
@@ -172,7 +172,7 @@ export function Root() {
                         <p>
                             Built with{' '}
                             <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
-                                Scratch.ts v{VERSION}
+                                Scratch.tsx v{VERSION}
                             </a>
                         </p>
                         <p>

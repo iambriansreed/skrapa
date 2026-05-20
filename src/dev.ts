@@ -1,18 +1,29 @@
 import { exec, execSync, spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 
-const tsc = spawn('tsc', ['-p', 'src/bin/tsconfig.json', '--watch'], { stdio: 'pipe' });
+const tsc = spawn('tsc', ['--watch'], { stdio: 'pipe' });
 
 let server: ChildProcess | null = null;
+let restartTimer: ReturnType<typeof setTimeout> | null = null;
 
 function start() {
     if (server) {
         server.kill();
         server = null;
     }
+    execSync('cp .scratch/src/bin/scratch.js bin/scratch.js', { stdio: 'inherit' });
     server = exec(`node bin/scratch.js dev`, { stdio: 'inherit' } as any);
     server.stdout?.pipe(process.stdout);
     server.stderr?.pipe(process.stderr);
+}
+
+function scheduleRestart() {
+    if (restartTimer) clearTimeout(restartTimer);
+    restartTimer = setTimeout(() => {
+        restartTimer = null;
+        console.log('Restarting dev server...');
+        start();
+    }, 100);
 }
 
 tsc.stdout.on('error', (error) => {
@@ -27,7 +38,6 @@ tsc.stdout.on('data', (data) => {
     process.stdout.write(output);
 
     if (output.includes('Watching for file changes.')) {
-        console.log('Restarting dev server...');
-        start();
+        scheduleRestart();
     }
 });

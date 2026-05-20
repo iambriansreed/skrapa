@@ -3,7 +3,7 @@
 /**
  * scratch.ts
  *
- * Scratch.ts is a simple build tool and dev server for quickly prototyping static HTML/CSS/JS projects using a custom JSX runtime. It allows you to write your HTML structure in TypeScript with JSX syntax, and then compiles it into a static index.html file with embedded CSS and JS. It also supports an optional assets directory for static files like images or fonts.
+ * Scratch.tsx is a simple build tool and dev server for quickly prototyping static HTML/CSS/JS projects using a custom JSX runtime. It allows you to write your HTML structure in TypeScript with JSX syntax, and then compiles it into a static index.html file with embedded CSS and JS. It also supports an optional assets directory for static files like images or fonts.
  *
  * Dev mode runs a local server on port 8080 with live reload via WebSocket. File changes in the input directory trigger automatic rebuilds, and asset changes are copied on-the-fly, providing instant feedback during development.
  *
@@ -204,7 +204,7 @@ function parseFlags(): Partial<Config> {
 }
 
 function initConfig() {
-    log.info(`Scratch.ts v${VERSION}\n`);
+    log.info(`Scratch.tsx v${VERSION}\n`);
 
     const configPath = path.resolve(ROOT_DIR, 'scratch.config.json');
     const flagConfig = parseFlags();
@@ -352,12 +352,26 @@ export async function dev() {
             <script>
               (function() {
                 let reconnecting = false;
+                let reloading = false;
+                let overlayTimer = null;
                 let overlay = null;
+                const originalTitle = document.title;
+
+                function reload() { reloading = true; window.location.reload(); }
+
+                function flashTitle() {
+                  let count = 0;
+                  const id = setInterval(() => {
+                    document.title = count++ % 2 === 0 ? '⚡ Reconnected' : originalTitle;
+                    if (count > 6) { clearInterval(id); document.title = originalTitle; }
+                  }, 400);
+                }
+
                 function showOverlay() {
                   if (overlay) return;
                   overlay = document.createElement('div');
                   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);color:#fff;display:flex;align-items:center;justify-content:center;font:24px/1 monospace;z-index:99999';
-                  overlay.innerHTML = 'Reconnecting<span id="_d1" style="animation:blink 1s step-start infinite">.</span><span id="_d2" style="animation:blink 1s step-start infinite 0.33s">.</span><span id="_d3" style="animation:blink 1s step-start infinite 0.66s">.</span>';
+                  overlay.innerHTML = 'Dev server disconnected — Reconnecting<span style="animation:blink 1s step-start infinite">.</span><span style="animation:blink 1s step-start infinite 0.33s">.</span><span style="animation:blink 1s step-start infinite 0.66s">.</span>';
                   const style = document.createElement('style');
                   style.textContent = '@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}';
                   overlay.appendChild(style);
@@ -371,9 +385,20 @@ export async function dev() {
                 }
                 function connect() {
                   const ws = new WebSocket('ws://localhost:${config.port}/hmr');
-                  ws.onopen = () => { if (reconnecting) { showReconnected(); setTimeout(() => { hideOverlay(); window.location.reload(); }, 600); } };
-                  ws.onmessage = (event) => { if (event.data === 'reload') window.location.reload(); };
-                  ws.onclose = () => { reconnecting = true; showOverlay(); setTimeout(connect, 1000); };
+                  ws.onopen = () => {
+                    if (reconnecting) {
+                      clearTimeout(overlayTimer);
+                      if (overlay) { flashTitle(); showReconnected(); setTimeout(() => { hideOverlay(); reload(); }, 600); }
+                      else { reload(); }
+                    }
+                  };
+                  ws.onmessage = (event) => { if (event.data === 'reload') reload(); };
+                  ws.onclose = () => {
+                    if (reloading) return;
+                    reconnecting = true;
+                    overlayTimer = setTimeout(showOverlay, 1500);
+                    setTimeout(connect, 1000);
+                  };
                 }
                 connect();
               })();
@@ -477,7 +502,7 @@ export async function dev() {
 // ============================================================================
 
 export async function init() {
-    console.log(`\n${color.cyan}Scratch.ts${color.reset} ${color.gray}v${VERSION}${color.reset}`);
+    console.log(`\n${color.cyan}Scratch.tsx${color.reset} ${color.gray}v${VERSION}${color.reset}`);
     log.gray('Initializing...\n');
 
     const rootPath = (...paths: string[]) => path.join(ROOT_DIR, ...paths);

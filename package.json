@@ -4,7 +4,7 @@
     "main": "index.js",
     "scripts": {
         "dev": "npx tsx src/dev.ts",
-        "build": "tsc && cp .scratch/src/bin/scratch.js bin/scratch.js",
+        "build": "tsc && mkdir -p bin && cp .scratch/src/bin/scratch.js bin/scratch.js",
         "postbuild": "chmod +x bin/scratch.js",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",

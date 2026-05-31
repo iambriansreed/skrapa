@@ -1,9 +1,11 @@
 {
     "name": "skrapa",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "author": "iambriansreed",
     "scripts": {
         "dev": "npx tsx src/dev.ts",
+        "dev:bin": "npx tsx src/dev.ts -bin",
+        "dev:template": "npx tsx src/dev.ts -template",
         "build": "tsc && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js",
         "postbuild": "chmod +x bin/skrapa.js",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
@@ -11,7 +13,8 @@
         "lint:css": "stylelint src/**/*.css",
         "test": "echo \"Error: no test specified\" && exit 1",
         "clean": "rm -rf dist bin .skrapa",
-        "dev-pack": "npm run build && npm pack && rm -f ../skrapa-*.tgz && mv skrapa-*.tgz ../ && cd .. && rm -rf package && tar -xzf skrapa-*.tgz && cd package && npm link"
+        "dev-pack": "npm run clean && npm run build && npm pack && rm -f ../skrapa-*.tgz && mv skrapa-*.tgz ../ && cd .. && rm -rf package && tar -xzf skrapa-*.tgz && cd package && npm link",
+        "release": "npm run build & npm version patch && npm publish"
     },
     "files": [
         "bin/",

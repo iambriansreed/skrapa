@@ -24,6 +24,8 @@ export const Fragment = 'Fragment';
 
 const VERSION: string = require('../package.json').version;
 
+const CWD_DIR = path.join(process.cwd());
+
 const VOID_ELEMENTS = new Set([
     'area',
     'base',
@@ -63,13 +65,11 @@ export function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]):
               // keys are never used but in case someone passes them, we should ignore them to avoid invalid attributes in the output
               .filter((k) => k !== 'children' && k !== 'key')
               .map((k) => {
-                  const value = props[k as keyof Props] as unknown;
+                  let value = props[k as keyof Props] as unknown;
 
                   if (k === 'style') return ` ${k}="${styleToCss(props[k])}"`;
 
                   if (value === undefined || value === null) return '';
-
-                  if (typeof value === 'boolean') return value ? ` ${k}` : '';
 
                   if (value && typeof value === 'object')
                       return ` ${k}="${
@@ -104,7 +104,7 @@ export function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]):
         if (childStr !== '') {
             throw new Error(`Invalid JSX: void element <${tag}> cannot have children.`);
         }
-        return `<${tag}${attrs} />`;
+        return `<${tag}${attrs}>`;
     }
 
     return `<${tag}${attrs}>${childStr}</${tag}>`;
@@ -117,7 +117,8 @@ globalThis.VERSION = VERSION;
 function exe(cmd: string) {
     execSync(cmd, { stdio: 'inherit' });
 }
-interface Config {
+
+type Config = {
     /**
      *
      * Input directory containing index.tsx and style.css, defaults to "src".
@@ -138,7 +139,7 @@ interface Config {
      *
      * @default "dist"
      */
-    output?: string;
+    output: string;
     /**
      * Optional assets directory to copy to output, defaults to "assets".
      *
@@ -148,20 +149,31 @@ interface Config {
      *
      * @default "assets"
      * */
-    assets?: string;
+    assets: string;
     /**
      * Optional port number for dev server, defaults to 8080. If the port is already in use, it will log an error and exit.
      *
      * @default 8080
      */
-    port?: number;
-}
+    port: string;
+    /**
+     * Optional root directory for resolving input/output/assets paths, defaults to the current working directory. This can be used to run Skrapa from a different location than the project root, but it's generally recommended to run it from the project root for simplicity.
+     *
+     * @default process.cwd()
+     */
+    root: string;
+};
 
-const DEFAULT_CONFIG = {
+type ConfigKeys = keyof Config;
+
+const CONFIG_KEYS: ConfigKeys[] = ['input', 'output', 'assets', 'port', 'root'];
+
+const DEFAULT_CONFIG: Config = {
     input: 'src',
     output: 'dist',
     assets: 'assets',
-    port: 8080,
+    port: '8080',
+    root: process.cwd(),
 } as const;
 
 // ============================================================================
@@ -186,44 +198,47 @@ const log = {
     gray: (msg: string) => console.log(`${color.gray}${msg}${color.reset}`),
 };
 
-const ROOT_DIR = process.cwd();
-
-const WORKING_DIR = path.join(ROOT_DIR, '.skrapa');
-
 function parseFlags(): Partial<Config> {
     const args = process.argv.slice(3);
     const flags: Partial<Config> = {};
 
-    for (let i = 0; i < args.length; i++) {
-        if (args[i] === '--input') flags.input = args[++i];
-        else if (args[i] === '--output') flags.output = args[++i];
-        else if (args[i] === '--assets') flags.assets = args[++i];
-        else if (args[i] === '--port') flags.port = parseInt(args[++i]);
-    }
+    CONFIG_KEYS.forEach((key) => {
+        const flag = `--${key}`; // --root, --input, --output, --assets, --port
+        const index = args.findIndex((arg) => arg === flag);
+        if (index > -1 && index < args.length - 1) flags[key] = args[index + 1];
+    });
+
     return flags;
 }
 
 function initConfig() {
     log.info(`Skrapa v${VERSION}\n`);
 
-    const configPath = path.resolve(ROOT_DIR, 'skrapa.config.json');
+    // find skrapa.config.json starting from current working directory and moving up until found or root is reached
+
+    const configPath = path.resolve(CWD_DIR, 'skrapa.config.json');
     const flagConfig = parseFlags();
 
     let config: Config = { ...DEFAULT_CONFIG };
     if (fs.existsSync(configPath)) {
-        const fileConfig: Config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        const fileConfig: Partial<Config> = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         config = { ...DEFAULT_CONFIG, ...fileConfig, ...flagConfig };
-        log.success(`Loaded config from: ${path.relative(ROOT_DIR, configPath)}`);
+        log.success(`Loaded config from: ${path.relative(CWD_DIR, configPath)}`);
     } else {
         config = { ...DEFAULT_CONFIG, ...flagConfig };
         log.gray(`No config file found, using defaults: ${JSON.stringify(config, null, 2)}`);
     }
 
-    const input = config.input ? path.resolve(ROOT_DIR, config.input) : '';
+    // Resolve root to an absolute path so require() and all derived paths
+    // (input/output/assets/WORKING_DIR) follow --root instead of the cwd.
+    config.root = path.resolve(CWD_DIR, config.root);
+    const WORKING_DIR = path.join(config.root, '.skrapa');
 
-    const output = config.output ? path.resolve(ROOT_DIR, config.output) : '';
+    const input = config.input ? path.resolve(config.root, config.input) : '';
 
-    const assets = config.assets ? path.resolve(ROOT_DIR, config.assets) : '';
+    const output = config.output ? path.resolve(config.root, config.output) : '';
+
+    const assets = config.assets ? path.resolve(config.root, config.assets) : '';
 
     if (!fs.existsSync(input)) {
         log.error(`Error: input directory does not exist at ${input}`);
@@ -245,7 +260,7 @@ function initConfig() {
         log.gray(`Assets directory (${assets}) does not exist. Continuing without copying assets.`);
     }
 
-    return { directory: { input, output, assets }, config };
+    return { directory: { input, output, assets }, config, WORKING_DIR };
 }
 
 // ============================================================================
@@ -253,27 +268,28 @@ function initConfig() {
 // ============================================================================
 
 export async function build(cfg?: ReturnType<typeof initConfig>) {
-    const { directory, config } = cfg ?? initConfig();
+    const { directory, config, WORKING_DIR } = cfg ?? initConfig();
 
-    exe(`cd ${ROOT_DIR} && tsc`);
-    exe(`cd ${ROOT_DIR} && tsc -p ${path.join(ROOT_DIR, 'tsconfig.client.json')}`);
+    exe(`cd ${config.root} && tsc`);
+    exe(`cd ${config.root} && tsc -p tsconfig.client.json`);
 
-    const { Root } = require(path.join(WORKING_DIR, config.input, 'index.js'));
+    const { App } = require(path.join(WORKING_DIR, config.input, 'app.js'));
 
-    let html: string = Root();
-
+    const appHtml: string = App();
     const clientJs = fs.readFileSync(path.join(WORKING_DIR, config.input, 'client.js'), 'utf-8');
     const css = fs.readFileSync(path.join(directory.input, 'style.css'), 'utf-8');
 
+    let html = fs.readFileSync(path.join(config.root, 'index.html'), 'utf-8');
+
     html = html
-        .replace('</body>', () => `<script>${clientJs}</script></body>`)
-        .replace('</head>', () => `<style>${css}</style></head>`);
+        .replace('</head>', () => `<style data-skrapa>${css}</style></head>`)
+        .replace('</body>', () => `${appHtml}<script data-skrapa>${clientJs}</script></body>`);
 
     fs.writeFileSync(path.join(directory.output, 'index.html'), html);
 
     if (!process.argv.includes('skip-assets') && directory.assets) {
         if (fs.existsSync(directory.assets)) {
-            exe(`cp ${directory.assets}/* ${directory.output}/`);
+            exe(`cp -r ${directory.assets}/* ${directory.output}/`);
         }
     }
 
@@ -320,10 +336,26 @@ export async function dev() {
 
     function broadcast(message: string) {
         const payload = Buffer.from(message);
-        const frame = Buffer.alloc(2 + payload.length);
-        frame[0] = 0x81; // FIN + text opcode
-        frame[1] = payload.length;
-        payload.copy(frame, 2);
+        const len = payload.length;
+        let frame: Buffer;
+        if (len <= 125) {
+            frame = Buffer.alloc(2 + len);
+            frame[0] = 0x81;
+            frame[1] = len;
+            payload.copy(frame, 2);
+        } else if (len <= 65535) {
+            frame = Buffer.alloc(4 + len);
+            frame[0] = 0x81;
+            frame[1] = 126;
+            frame.writeUInt16BE(len, 2);
+            payload.copy(frame, 4);
+        } else {
+            frame = Buffer.alloc(10 + len);
+            frame[0] = 0x81;
+            frame[1] = 127;
+            frame.writeBigUInt64BE(BigInt(len), 2);
+            payload.copy(frame, 10);
+        }
         for (const socket of clients) socket.write(frame);
     }
 
@@ -353,50 +385,67 @@ export async function dev() {
               (function() {
                 let reconnecting = false;
                 let reloading = false;
-                let overlayTimer = null;
-                let overlay = null;
-                const originalTitle = document.title;
+                let toastTimer = null;
+                let fadeTimer = null;
+                let toast = null;
 
                 function reload() { reloading = true; window.location.reload(); }
 
-                function flashTitle() {
-                  let count = 0;
-                  const id = setInterval(() => {
-                    document.title = count++ % 2 === 0 ? '⚡ Reconnected' : originalTitle;
-                    if (count > 6) { clearInterval(id); document.title = originalTitle; }
-                  }, 400);
+                function getToast() {
+                  if (!toast) {
+                    toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);padding:5px 16px;border-radius:99px;font:12px/1.6 monospace;z-index:99999;transition:opacity 0.35s;pointer-events:none;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25)';
+                    document.body.appendChild(toast);
+                  }
+                  clearTimeout(fadeTimer);
+                  toast.style.opacity = '1';
+                  return toast;
                 }
 
-                function showOverlay() {
-                  if (overlay) return;
-                  overlay = document.createElement('div');
-                  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);color:#fff;display:flex;align-items:center;justify-content:center;font:24px/1 monospace;z-index:99999';
-                  overlay.innerHTML = 'Dev server disconnected — Reconnecting<span style="animation:blink 1s step-start infinite">.</span><span style="animation:blink 1s step-start infinite 0.33s">.</span><span style="animation:blink 1s step-start infinite 0.66s">.</span>';
-                  const style = document.createElement('style');
-                  style.textContent = '@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}';
-                  overlay.appendChild(style);
-                  document.body.appendChild(overlay);
+                function showToast(msg, bg, fade) {
+                  const t = getToast();
+                  t.textContent = msg;
+                  t.style.background = bg;
+                  t.style.color = '#fff';
+                  if (fade) {
+                    fadeTimer = setTimeout(() => {
+                      t.style.opacity = '0';
+                      fadeTimer = setTimeout(() => { if (toast) { toast.remove(); toast = null; } }, 400);
+                    }, 1800);
+                  }
                 }
-                function showReconnected() {
-                  if (overlay) { overlay.innerHTML = '✓ Reconnected'; overlay.style.background = 'rgba(0,120,0,0.7)'; }
+
+                function hideToast() {
+                  clearTimeout(fadeTimer);
+                  if (toast) { toast.remove(); toast = null; }
                 }
-                function hideOverlay() {
-                  if (overlay) { overlay.remove(); overlay = null; }
-                }
+
                 function connect() {
                   const ws = new WebSocket('ws://localhost:${config.port}/hmr');
                   ws.onopen = () => {
                     if (reconnecting) {
-                      clearTimeout(overlayTimer);
-                      if (overlay) { flashTitle(); showReconnected(); setTimeout(() => { hideOverlay(); reload(); }, 600); }
-                      else { reload(); }
+                      clearTimeout(toastTimer);
+                      if (toast) {
+                        showToast('✓ Reconnected', 'rgba(30,160,60,0.92)', false);
+                        setTimeout(() => { hideToast(); reload(); }, 700);
+                      } else { reload(); }
                     }
                   };
-                  ws.onmessage = (event) => { if (event.data === 'reload') reload(); };
+                  ws.onmessage = (event) => {
+                    if (event.data === 'reload') { reload(); return; }
+                    try {
+                      const msg = JSON.parse(event.data);
+                      if (msg.type === 'style') {
+                        const el = document.querySelector('style[data-skrapa]');
+                        if (el) el.textContent = msg.css;
+                        showToast('CSS updated', 'rgba(30,100,220,0.92)', true);
+                      }
+                    } catch (_) {}
+                  };
                   ws.onclose = () => {
                     if (reloading) return;
                     reconnecting = true;
-                    overlayTimer = setTimeout(showOverlay, 1500);
+                    toastTimer = setTimeout(() => showToast('Reconnecting…', 'rgba(200,80,20,0.92)', false), 1500);
                     setTimeout(connect, 1000);
                   };
                 }
@@ -416,7 +465,7 @@ export async function dev() {
     });
 
     server.on('upgrade', (req, socket: Socket) => {
-        // log.gray(`WebSocket upgrade: ${req.url}`);
+        // log.gray(`WS upgrade: ${req.url}`);
         if (req.url !== '/hmr') {
             socket.destroy();
             return;
@@ -437,20 +486,22 @@ export async function dev() {
         );
 
         clients.add(socket);
-        // log.gray(`WebSocket connected (${clients.size} total)`);
+        // log.gray(`WS connected (${clients.size} total)`);
         socket.on('close', () => {
             clients.delete(socket);
-            log.gray(`WebSocket closed (${clients.size} remaining)`);
+            log.gray(
+                `WS closed (${clients.size} remaining) — reopen http://localhost:${config.port}`
+            );
         });
         socket.on('error', (err) => {
             clients.delete(socket);
-            log.error(`WebSocket error: ${err.message}`);
+            log.error(`WS error: ${err.message}`);
         });
     });
 
     let buildTimer: NodeJS.Timeout | null = null;
 
-    fs.watch(directory.input, { recursive: true }, () => {
+    const triggerBuild = () => {
         if (buildTimer) clearTimeout(buildTimer);
         buildTimer = setTimeout(() => {
             exec(
@@ -467,13 +518,39 @@ export async function dev() {
                 }
             );
         }, 100);
+    };
+
+    let inputTimer: NodeJS.Timeout | null = null;
+    let inputCssOnly = true;
+
+    fs.watch(directory.input, { recursive: true }, (_event, filename) => {
+        if (filename !== 'style.css') inputCssOnly = false;
+        if (inputTimer) clearTimeout(inputTimer);
+        inputTimer = setTimeout(() => {
+            const cssOnly = inputCssOnly;
+            inputCssOnly = true;
+            if (cssOnly) {
+                try {
+                    const css = fs.readFileSync(path.join(directory.input, 'style.css'), 'utf-8');
+                    broadcast(JSON.stringify({ type: 'style', css }));
+                    log.success(
+                        `${color.reset}[${new Date().toLocaleTimeString()}]${color.green} Style updated → pushing CSS (${clients.size} client${clients.size === 1 ? '' : 's'})`
+                    );
+                } catch (err: unknown) {
+                    log.error(`Style read failed: ${(err as Error).message}`);
+                }
+            } else {
+                triggerBuild();
+            }
+        }, 100);
     });
+    fs.watch(path.join(config.root, 'index.html'), triggerBuild);
 
     if (fs.existsSync(directory.assets)) {
         fs.watch(directory.assets, { recursive: true }, (_event, filename) => {
             if (!filename) return;
             exe(
-                `cp ${path.join(directory.assets, filename)} ${path.join(directory.output, filename)}`
+                `cp -r ${path.join(directory.assets, filename)} ${path.join(directory.output, filename)}`
             );
             broadcast('reload');
             log.success(`${directory.assets}/${filename} → ${directory.output}/${filename}`);
@@ -505,7 +582,7 @@ export async function init() {
     console.log(`\n${color.cyan}Skrapa${color.reset} ${color.gray}v${VERSION}${color.reset}`);
     log.gray('Initializing...\n');
 
-    const rootPath = (...paths: string[]) => path.join(ROOT_DIR, ...paths);
+    const rootPath = (...paths: string[]) => path.join(CWD_DIR, ...paths);
 
     const templateDir = path.join(__dirname, '../template');
 
@@ -514,8 +591,8 @@ export async function init() {
     execSync(`cp -r${force ? ' -f' : ''} ${templateDir}/* ${rootPath()}`);
 
     fs.writeFileSync(
-        rootPath('src/index.tsx'),
-        fs.readFileSync(rootPath('src/index.tsx'), { encoding: 'utf-8' }).replace('v0.0.0', VERSION)
+        rootPath('src/app.tsx'),
+        fs.readFileSync(rootPath('src/app.tsx'), { encoding: 'utf-8' }).replace('v0.0.0', VERSION)
     );
 
     // ensure .scratch, node_modules, and dist are in .gitignore, creating it if needed
@@ -586,10 +663,14 @@ export async function init() {
 // ============================================================================
 
 // check if skrapa.config.json exists
-const initiated = fs.existsSync(path.resolve(ROOT_DIR, 'skrapa.config.json'));
+const initiated = fs.existsSync(path.resolve(CWD_DIR, 'skrapa.config.json'));
 
 (async () => {
-    const cmd = process.argv[2] || (!initiated && 'init') || '';
+    let cmd = process.argv[2] || '';
+
+    if (!cmd && !initiated) {
+        cmd = 'init';
+    }
 
     if (['init', 'build', 'dev'].includes(cmd)) {
         // @ts-expect-error - dynamic command execution

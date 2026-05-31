@@ -1,3 +1,4 @@
+/** SKRAPA Types > */
 declare global {
     type CSSProperties = Partial<CSSStyleDeclaration> & {
         [key: `--${string}`]: string | number; // Support for CSS variables (custom properties)
@@ -24,8 +25,12 @@ declare global {
         interface IntrinsicElements {
             [elemName: string]: any;
         }
+        interface ElementChildrenAttribute {
+            children: {};
+        }
         type Element = string;
     }
 }
 
 export declare const Fragment = 'Fragment';
+/** < SKRAPA Types */

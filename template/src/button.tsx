@@ -1,3 +1,3 @@
-export function Button() {
-    return <button id="counter">count is 0</button>;
+export function Button({ children }: { children: string }) {
+    return <button id="counter">{children}</button>;
 }

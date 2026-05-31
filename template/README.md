@@ -5,7 +5,8 @@ A minimal static site built with [Skrapa](https://iambrian.com/scratch) — nati
 ## Project structure
 
 ```
-src/index.tsx     # root JSX component — export Root() returns an HTML string
+index.html        # HTML template (head + body shell)
+src/app.tsx       # app JSX component — export App() returns body HTML
 src/client.ts     # browser JS, compiled and inlined
 src/style.css     # styles, inlined into the HTML
 assets/           # static files copied as-is to dist/

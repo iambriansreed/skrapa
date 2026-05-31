@@ -9,7 +9,8 @@ Requires Node.js v24+.
 JSX in `src/` renders to raw HTML strings at build time. Client JS and CSS are inlined, assets are copied as-is, and everything ships as a single `dist/index.html`.
 
 ```
-src/index.tsx  →  Root() returns an HTML string
+index.html     →  HTML template (head + body shell)
+src/app.tsx    →  App() renders body content as HTML
 src/client.ts  →  compiled and inlined as browser JS
 src/style.css  →  inlined into the HTML
 assets/        →  copied as-is to dist/
@@ -36,12 +37,13 @@ Builds to `dist/index.html` — HTML, CSS, and JS in a single file ready to depl
 Creates:
 
 ```
+index.html               # HTML template
+src/app.tsx              # JSX body content
 src/button.tsx           # example component
 src/client.ts            # browser JS entry point
-src/index.tsx            # root JSX component
 src/style.css            # styles
-assets/skrapa.svg       # logo
-skrapa.config.json      # project config
+assets/skrapa.svg        # logo
+skrapa.config.json       # project config
 tsconfig.json            # TypeScript config
 tsconfig.client.json     # browser TypeScript config
 ```
@@ -69,7 +71,7 @@ npx skrapa build      # production build
 
 | Field    | Default  | Description                                                 |
 | -------- | -------- | ----------------------------------------------------------- |
-| `input`  | `src`    | Directory containing `index.tsx`, `client.ts`, `style.css`  |
+| `input`  | `src`    | Directory containing `app.tsx`, `client.ts`, `style.css`    |
 | `output` | `dist`   | Build output directory                                      |
 | `assets` | `assets` | Static files copied as-is to output; skipped if not present |
 | `port`   | `8080`   | Dev server port                                             |

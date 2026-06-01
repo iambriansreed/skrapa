@@ -3,5 +3,6 @@
     "output": "dist",
     "assets": "assets",
     "root": "./",
-    "port": 8090
+    "port": 8090,
+    "host": "localhost"
 }

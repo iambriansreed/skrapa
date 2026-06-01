@@ -157,6 +157,12 @@ type Config = {
      */
     port: string;
     /**
+     * Optional host for the dev server, defaults to "localhost". Used to build the served URLs and the HMR WebSocket address.
+     *
+     * @default "localhost"
+     */
+    host: string;
+    /**
      * Optional root directory for resolving input/output/assets paths, defaults to the current working directory. This can be used to run Skrapa from a different location than the project root, but it's generally recommended to run it from the project root for simplicity.
      *
      * @default process.cwd()
@@ -166,13 +172,14 @@ type Config = {
 
 type ConfigKeys = keyof Config;
 
-const CONFIG_KEYS: ConfigKeys[] = ['input', 'output', 'assets', 'port', 'root'];
+const CONFIG_KEYS: ConfigKeys[] = ['input', 'output', 'assets', 'port', 'host', 'root'];
 
 const DEFAULT_CONFIG: Config = {
     input: 'src',
     output: 'dist',
     assets: 'assets',
     port: '8080',
+    host: 'localhost',
     root: process.cwd(),
 } as const;
 
@@ -421,7 +428,7 @@ export async function dev() {
                 }
 
                 function connect() {
-                  const ws = new WebSocket('ws://localhost:${config.port}/hmr');
+                  const ws = new WebSocket('ws://${config.host}:${config.port}/hmr');
                   ws.onopen = () => {
                     if (reconnecting) {
                       clearTimeout(toastTimer);
@@ -490,7 +497,7 @@ export async function dev() {
         socket.on('close', () => {
             clients.delete(socket);
             log.gray(
-                `WS closed (${clients.size} remaining) — reopen http://localhost:${config.port}`
+                `WS closed (${clients.size} remaining) — reopen http://${config.host}:${config.port}`
             );
         });
         socket.on('error', (err) => {
@@ -557,12 +564,12 @@ export async function dev() {
         });
     }
 
-    server.listen(config.port, () => {
+    server.listen(Number(config.port), config.host, () => {
         log.success(
-            `\n⚡ ${color.cyan}http://localhost:${config.port}${color.reset}  ${color.gray}ctrl+C to stop${color.reset}\n`
+            `\n⚡ ${color.cyan}http://${config.host}:${config.port}${color.reset}  ${color.gray}ctrl+C to stop${color.reset}\n`
         );
         setTimeout(() => {
-            if (clients.size === 0) exe(`open http://localhost:${config.port}`);
+            if (clients.size === 0) exe(`open http://${config.host}:${config.port}`);
         }, 1500);
     });
 

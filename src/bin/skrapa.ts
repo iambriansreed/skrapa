@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * scratch.ts
+ * skrapa.ts
  *
- * Skrapa is a simple build tool and dev server for quickly prototyping static HTML/CSS/JS projects using a custom JSX runtime. It allows you to write your HTML structure in TypeScript with JSX syntax, and then compiles it into a static index.html file with embedded CSS and JS. It also supports an optional assets directory for static files like images or fonts.
+ * Skrapa is a simple build tool and dev server for quickly prototyping static HTML/CSS/JS projects using a custom JSX runtime. It allows you to write your HTML structure in TypeScript with JSX syntax, and then compiles every `<dir>/index.tsx` that exports `Page` into a static HTML page with its client JS inlined. It also supports an optional assets directory for static files like images or fonts.
  *
  * Dev mode runs a local server on port 8080 with live reload via WebSocket. File changes in the input directory trigger automatic rebuilds, and asset changes are copied on-the-fly, providing instant feedback during development.
  *
@@ -121,7 +121,7 @@ function exe(cmd: string) {
 type Config = {
     /**
      *
-     * Input directory containing index.tsx and style.css, defaults to "src".
+     * Input directory containing index.tsx and client.ts, defaults to "src".
      *
      * It will error if the directory doesn't exist or if index.tsx is missing.
      *
@@ -163,6 +163,17 @@ type Config = {
      */
     host: string;
     /**
+     * Optional base URL path the site is served from, defaults to "/". It is
+     * injected as `<base href>` into every page's <head> so relative asset and
+     * link URLs resolve correctly from nested pages (e.g. /about/) instead of
+     * 404ing at /about/asset.svg. For a GitHub Pages project site served under
+     * a subpath, set it to the repo name, e.g. "/my-site/". A trailing slash is
+     * added if missing.
+     *
+     * @default "/"
+     */
+    base: string;
+    /**
      * Optional root directory for resolving input/output/assets paths, defaults to the current working directory. This can be used to run Skrapa from a different location than the project root, but it's generally recommended to run it from the project root for simplicity.
      *
      * @default process.cwd()
@@ -172,7 +183,7 @@ type Config = {
 
 type ConfigKeys = keyof Config;
 
-const CONFIG_KEYS: ConfigKeys[] = ['input', 'output', 'assets', 'port', 'host', 'root'];
+const CONFIG_KEYS: ConfigKeys[] = ['input', 'output', 'assets', 'port', 'host', 'base', 'root'];
 
 const DEFAULT_CONFIG: Config = {
     input: 'src',
@@ -180,6 +191,7 @@ const DEFAULT_CONFIG: Config = {
     assets: 'assets',
     port: '8080',
     host: 'localhost',
+    base: '/',
     root: process.cwd(),
 } as const;
 
@@ -221,10 +233,12 @@ function parseFlags(): Partial<Config> {
 function initConfig() {
     log.info(`Skrapa v${VERSION}\n`);
 
-    // find skrapa.config.json starting from current working directory and moving up until found or root is reached
-
-    const configPath = path.resolve(CWD_DIR, 'skrapa.config.json');
     const flagConfig = parseFlags();
+
+    // Look for skrapa.config.json in the --root directory when provided, so
+    // `--root template` reads template/skrapa.config.json instead of the cwd's.
+    const configRoot = path.resolve(CWD_DIR, flagConfig.root ?? DEFAULT_CONFIG.root);
+    const configPath = path.resolve(configRoot, 'skrapa.config.json');
 
     let config: Config = { ...DEFAULT_CONFIG };
     if (fs.existsSync(configPath)) {
@@ -274,25 +288,107 @@ function initConfig() {
 // BUILD
 // ============================================================================
 
+// A page module exports `Page()`, which returns either the body HTML as a
+// string or a `Page` object (see global.d.ts) that can also set the shared
+// template's head/title and the page's client JS.
 export async function build(cfg?: ReturnType<typeof initConfig>) {
     const { directory, config, WORKING_DIR } = cfg ?? initConfig();
 
     exe(`cd ${config.root} && tsc`);
     exe(`cd ${config.root} && tsc -p tsconfig.client.json`);
 
-    const { App } = require(path.join(WORKING_DIR, config.input, 'app.js'));
+    const template = fs.readFileSync(path.join(directory.input, 'index.html'), 'utf-8');
 
-    const appHtml: string = App();
-    const clientJs = fs.readFileSync(path.join(WORKING_DIR, config.input, 'client.js'), 'utf-8');
-    const css = fs.readFileSync(path.join(directory.input, 'style.css'), 'utf-8');
+    // Served-from base path, injected as <base href> so relative asset and link
+    // URLs resolve the same from "/" and from nested pages like "/about/".
+    const base = config.base.endsWith('/') ? config.base : `${config.base}/`;
 
-    let html = fs.readFileSync(path.join(config.root, 'index.html'), 'utf-8');
+    // The compiled output mirrors the input tree under .skrapa/<input>, so a
+    // page authored at src/about/index.tsx compiles to
+    // .skrapa/src/about/index.js. Skrapa does not handle CSS — load it yourself
+    // from a page's `head` or the shared index.html (e.g. a <link> to assets).
+    const compiledDir = path.join(WORKING_DIR, config.input);
 
-    html = html
-        .replace('</head>', () => `<style data-skrapa>${css}</style></head>`)
-        .replace('</body>', () => `${appHtml}<script data-skrapa>${clientJs}</script></body>`);
+    // Read the compiled client bundle for `<relDir>/client.ts`, if it exists.
+    const readClient = (relDir: string): string | null => {
+        const p = path.join(compiledDir, relDir, 'client.js');
+        return fs.existsSync(p) ? fs.readFileSync(p, 'utf-8') : null;
+    };
 
-    fs.writeFileSync(path.join(directory.output, 'index.html'), html);
+    // Resolve an explicit `clientJs` entry (e.g. "/about/client.ts", rooted at
+    // the input dir) to its compiled bundle and read it.
+    const readClientPath = (entry: string, pageDir: string): string | null => {
+        const rel = entry.startsWith('/') ? entry.slice(1) : path.join(pageDir, entry);
+        const p = path.join(compiledDir, rel.replace(/\.tsx?$/, '.js'));
+        return fs.existsSync(p) ? fs.readFileSync(p, 'utf-8') : null;
+    };
+
+    // Every compiled `<dir>/index.js` is a candidate page; anything else
+    // (shared components, helpers, client.js) is ignored.
+    const findPages = (dir: string): string[] =>
+        fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) return findPages(full);
+            return entry.name === 'index.js' ? [full] : [];
+        });
+
+    const pageFiles = fs.existsSync(compiledDir) ? findPages(compiledDir) : [];
+
+    let pageCount = 0;
+
+    for (const file of pageFiles) {
+        const mod = require(file);
+        const PageFn = mod.Page;
+        // A page is an index module that exports a `Page` function — skip the rest.
+        if (typeof PageFn !== 'function') continue;
+
+        // Page directory relative to the input root: '' (root), 'about', 'a/b'.
+        const pageDir = path.relative(compiledDir, path.dirname(file));
+
+        const result: Page = PageFn();
+        const page: Exclude<Page, string> =
+            typeof result === 'string' ? { body: result } : result;
+        const { body = '', head = '', title } = page;
+
+        // Client JS: an explicit `clientJs` list loads exactly those entries;
+        // otherwise merge `client.ts` up the directory chain to the input root
+        // (deepest first), skipping levels that have none.
+        let chunks: (string | null)[];
+        if (Array.isArray(page.clientJs)) {
+            chunks = page.clientJs.map((entry) => readClientPath(entry, pageDir));
+        } else {
+            const dirs: string[] = [];
+            for (let d = pageDir; ; d = path.dirname(d) === '.' ? '' : path.dirname(d)) {
+                dirs.push(d);
+                if (d === '') break;
+            }
+            chunks = dirs.map(readClient);
+        }
+        const clientJs = chunks.filter(Boolean).join('\n');
+
+        // <base> goes first in <head> so it governs every later URL (favicon,
+        // page `head`, body assets). \b avoids matching <header>.
+        let html = template
+            .replace(/<head\b[^>]*>/, (m) => `${m}<base href="${base}" />`)
+            .replace('</head>', () => `${head}</head>`);
+        if (title) html = html.replace(/<title>[\s\S]*?<\/title>/, () => `<title>${title}</title>`);
+        html = html.replace(
+            '</body>',
+            () => `${body}${clientJs ? `<script data-skrapa>${clientJs}</script>` : ''}</body>`
+        );
+
+        const full = path.join(directory.output, pageDir, 'index.html');
+        fs.mkdirSync(path.dirname(full), { recursive: true });
+        fs.writeFileSync(full, html);
+        pageCount++;
+    }
+
+    if (pageCount === 0) {
+        log.error(
+            `Error: no pages found in ${config.input} (a page is a <dir>/index.tsx that exports \`Page\`).`
+        );
+        process.exit(1);
+    }
 
     if (!process.argv.includes('skip-assets') && directory.assets) {
         if (fs.existsSync(directory.assets)) {
@@ -369,7 +465,17 @@ export async function dev() {
     const server = http.createServer((req, res) => {
         server.setMaxListeners(0);
         log.info(`${req.method} ${req.url}`);
-        const filePath = path.join(directory.output, req.url === '/' ? 'index.html' : req.url!);
+        // Resolve clean URLs to their index.html: "/" and "/about/" -> .../index.html,
+        // and extension-less paths like "/about" -> "/about/index.html".
+        let urlPath = (req.url ?? '/').split('?')[0];
+        // Strip the configured base prefix so a subpath deploy (base "/repo/")
+        // still previews locally at the URLs the injected <base> produces.
+        const basePrefix = config.base.replace(/\/+$/, '');
+        if (basePrefix && (urlPath === basePrefix || urlPath.startsWith(`${basePrefix}/`)))
+            urlPath = urlPath.slice(basePrefix.length) || '/';
+        if (urlPath.endsWith('/')) urlPath += 'index.html';
+        else if (!path.extname(urlPath)) urlPath += '/index.html';
+        const filePath = path.join(directory.output, urlPath);
         const extname = String(path.extname(filePath)).toLowerCase();
         const contentType = MIME_TYPES[extname] || 'application/octet-stream';
 
@@ -439,15 +545,7 @@ export async function dev() {
                     }
                   };
                   ws.onmessage = (event) => {
-                    if (event.data === 'reload') { reload(); return; }
-                    try {
-                      const msg = JSON.parse(event.data);
-                      if (msg.type === 'style') {
-                        const el = document.querySelector('style[data-skrapa]');
-                        if (el) el.textContent = msg.css;
-                        showToast('CSS updated', 'rgba(30,100,220,0.92)', true);
-                      }
-                    } catch (_) {}
+                    if (event.data === 'reload') reload();
                   };
                   ws.onclose = () => {
                     if (reloading) return;
@@ -528,37 +626,29 @@ export async function dev() {
     };
 
     let inputTimer: NodeJS.Timeout | null = null;
-    let inputCssOnly = true;
 
-    fs.watch(directory.input, { recursive: true }, (_event, filename) => {
-        if (filename !== 'style.css') inputCssOnly = false;
+    fs.watch(directory.input, { recursive: true }, () => {
         if (inputTimer) clearTimeout(inputTimer);
-        inputTimer = setTimeout(() => {
-            const cssOnly = inputCssOnly;
-            inputCssOnly = true;
-            if (cssOnly) {
-                try {
-                    const css = fs.readFileSync(path.join(directory.input, 'style.css'), 'utf-8');
-                    broadcast(JSON.stringify({ type: 'style', css }));
-                    log.success(
-                        `${color.reset}[${new Date().toLocaleTimeString()}]${color.green} Style updated → pushing CSS (${clients.size} client${clients.size === 1 ? '' : 's'})`
-                    );
-                } catch (err: unknown) {
-                    log.error(`Style read failed: ${(err as Error).message}`);
-                }
-            } else {
-                triggerBuild();
-            }
-        }, 100);
+        inputTimer = setTimeout(triggerBuild, 100);
     });
-    fs.watch(path.join(config.root, 'index.html'), triggerBuild);
 
     if (fs.existsSync(directory.assets)) {
         fs.watch(directory.assets, { recursive: true }, (_event, filename) => {
             if (!filename) return;
-            exe(
-                `cp -r ${path.join(directory.assets, filename)} ${path.join(directory.output, filename)}`
-            );
+            const src = path.join(directory.assets, filename);
+            const dest = path.join(directory.output, filename);
+            // Editors save atomically (write `*.tmp.*` then rename), so the
+            // watcher fires for a temp file that's already gone by the time we
+            // copy. Skip those and any source that no longer exists, and never
+            // let a copy failure crash the dev server.
+            if (/\.tmp[.\d]*$|~$/.test(filename) || !fs.existsSync(src)) return;
+            try {
+                fs.mkdirSync(path.dirname(dest), { recursive: true });
+                fs.cpSync(src, dest, { recursive: true });
+            } catch (err) {
+                log.error(`Asset copy failed: ${(err as Error).message}`);
+                return;
+            }
             broadcast('reload');
             log.success(`${directory.assets}/${filename} → ${directory.output}/${filename}`);
         });
@@ -598,11 +688,11 @@ export async function init() {
     execSync(`cp -r${force ? ' -f' : ''} ${templateDir}/* ${rootPath()}`);
 
     fs.writeFileSync(
-        rootPath('src/app.tsx'),
-        fs.readFileSync(rootPath('src/app.tsx'), { encoding: 'utf-8' }).replace('v0.0.0', VERSION)
+        rootPath('src/index.tsx'),
+        fs.readFileSync(rootPath('src/index.tsx'), { encoding: 'utf-8' }).replace('v0.0.0', VERSION)
     );
 
-    // ensure .scratch, node_modules, and dist are in .gitignore, creating it if needed
+    // ensure .skrapa, node_modules, and dist are in .gitignore, creating it if needed
     const gitIgnorePath = rootPath('.gitignore');
     const gitIgnoreEntries = ['.skrapa', 'node_modules', 'dist'];
     if (fs.existsSync(gitIgnorePath)) {

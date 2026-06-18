@@ -1,11 +1,11 @@
-import { Button } from './button';
+import { Button } from './components/button';
 
-export function App() {
+export function Page() {
     return (
         <>
             <a
                 class="github-link"
-                href="https://github.com/iambriansreed/scratch"
+                href="https://github.com/iambriansreed/skrapa"
                 target="_blank"
                 rel="noopener"
                 aria-label="GitHub"
@@ -17,11 +17,14 @@ export function App() {
                 <h1>Skrapa</h1>
                 <Button>count is 0</Button>
                 <p class="hint">
-                    Edit <code>src/app.tsx</code> or <code>src/button.tsx</code> and save to test
-                    live reload
+                    Edit <code>src/index.tsx</code> or <code>src/components/button.tsx</code> and
+                    save to test live reload
                 </p>
                 <p class="sub">
-                    <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
+                    <a href="/about/">About Skrapa →</a>
+                </p>
+                <p class="sub">
+                    <a href="https://iambrian.com/skrapa" target="_blank" rel="noopener">
                         Skrapa v{VERSION}
                     </a>{' '}
                     is made with ♥ by{' '}

@@ -16,5 +16,5 @@
         "typeRoots": ["./node_modules/@types"]
     },
     "include": ["**/*.ts", "**/*.tsx"],
-    "exclude": ["node_modules", "dist", "template", "bin", "build", "src/client.ts"]
+    "exclude": ["node_modules", "dist", "template", "bin", "build", "src/**/client.ts"]
 }

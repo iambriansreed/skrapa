@@ -16,6 +16,15 @@ declare global {
 
     type Tag = string | Function;
 
+    type Page =
+        | string
+        | {
+              title?: string;
+              body?: string;
+              head?: string;
+              clientJs?: string[];
+          };
+
     function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]): string;
 
     var Fragment: 'Fragment';

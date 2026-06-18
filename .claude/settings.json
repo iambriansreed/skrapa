@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git mv *)",
+      "Bash(node bin/skrapa.js build)",
+      "Bash(echo \"exit code main tsc: $?\")",
+      "Bash(echo \"exit client: $?\")"
+    ]
+  }
+}

@@ -1,15 +1,15 @@
 # Skrapa (sstx)
 
-A minimal static site built with [Skrapa](https://iambrian.com/scratch) — native TypeScript, JSX without the framework overhead, live reload, and a single `dist/index.html` deployable to GitHub Pages via built-in Actions workflow.
+A minimal static site built with [Skrapa](https://iambrian.com/skrapa) — native TypeScript, JSX without the framework overhead, live reload, and a single `dist/index.html` deployable to GitHub Pages via built-in Actions workflow.
 
 ## Project structure
 
 ```
-index.html        # HTML template (head + body shell)
-src/app.tsx       # app JSX component — export App() returns body HTML
-src/client.ts     # browser JS, compiled and inlined
-src/style.css     # styles, inlined into the HTML
-assets/           # static files copied as-is to dist/
+src/index.html       # shared HTML shell (head + body)
+src/index.tsx        # home page — export Page() returns body HTML
+src/about/index.tsx  # /about page — a nested dir becomes a nested route
+src/client.ts        # browser JS, compiled and inlined
+assets/              # copied as-is to dist/ (CSS, images, fonts)
 ```
 
 ## Commands

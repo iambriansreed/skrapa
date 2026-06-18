@@ -1,0 +1,40 @@
+.prose {
+    max-width: 42rem;
+    text-align: left;
+    line-height: 1.7;
+}
+.prose h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 1.75rem 0 0.5rem;
+}
+.prose p {
+    color: var(--muted);
+}
+.prose ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.prose li {
+    position: relative;
+    padding-left: 1.25rem;
+    color: var(--muted);
+}
+.prose li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+}
+.prose code {
+    color: var(--text);
+}
+.back {
+    color: var(--accent);
+    text-decoration: none;
+}
+.back:hover {
+    text-decoration: underline;
+}

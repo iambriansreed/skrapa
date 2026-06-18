@@ -1,6 +1,6 @@
-import { Features } from './features';
+import { Features } from './components/features';
 
-export function App() {
+export function Page(): Page {
     return (
         <>
             <svg
@@ -11,15 +11,55 @@ export function App() {
                 height="42"
                 aria-label="Skrapa Logo"
             >
-                <line x1="135" y1="42" x2="62" y2="52" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
-                <line x1="62" y1="52" x2="82" y2="102" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
-                <line x1="82" y1="102" x2="132" y2="92" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
-                <line x1="132" y1="92" x2="118" y2="152" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
-                <line x1="118" y1="152" x2="62" y2="158" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
+                <line
+                    x1="135"
+                    y1="42"
+                    x2="62"
+                    y2="52"
+                    stroke="currentColor"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                />
+                <line
+                    x1="62"
+                    y1="52"
+                    x2="82"
+                    y2="102"
+                    stroke="currentColor"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                />
+                <line
+                    x1="82"
+                    y1="102"
+                    x2="132"
+                    y2="92"
+                    stroke="currentColor"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                />
+                <line
+                    x1="132"
+                    y1="92"
+                    x2="118"
+                    y2="152"
+                    stroke="currentColor"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                />
+                <line
+                    x1="118"
+                    y1="152"
+                    x2="62"
+                    y2="158"
+                    stroke="currentColor"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                />
             </svg>
             <a
                 class="github-link"
-                href="https://github.com/iambriansreed/scratch"
+                href="https://github.com/iambriansreed/skrapa"
                 target="_blank"
                 rel="noopener"
                 aria-label="GitHub"
@@ -57,22 +97,22 @@ export function App() {
                 <section class="how-it-works">
                     <h2>How it works</h2>
                     <p>
-                        JSX in <code>src/</code> renders to raw HTML strings at build time.
-                        Client JS and CSS are inlined, assets are copied, and everything ships
-                        as a single file.
+                        JSX in <code>src/</code> renders to raw HTML strings at build time. Each{' '}
+                        <code>index.tsx</code> becomes a page with its client JS inlined, and assets
+                        are copied as-is.
                     </p>
                     <div class="arch">
                         <div class="arch-rows">
                             <div class="arch-row">
                                 <div class="arch-inputs">
                                     <div class="arch-file">
-                                        <span class="arch-file-name">index.html</span>
+                                        <span class="arch-file-name">src/index.html</span>
                                         <span class="arch-file-desc">
                                             HTML template with head and body structure
                                         </span>
                                     </div>
                                     <div class="arch-file">
-                                        <span class="arch-file-name">src/app.tsx</span>
+                                        <span class="arch-file-name">src/index.tsx</span>
                                         <span class="arch-file-desc">
                                             JSX components rendered to raw HTML at build time
                                         </span>
@@ -83,21 +123,16 @@ export function App() {
                                             TypeScript compiled to browser-optimized JavaScript
                                         </span>
                                     </div>
-                                    <div class="arch-file">
-                                        <span class="arch-file-name">src/style.css</span>
-                                        <span class="arch-file-desc">
-                                            Styles minified and bundled for the browser
-                                        </span>
-                                    </div>
                                 </div>
                                 <span class="arch-arrow">→</span>
                                 <div class="arch-output">
                                     <span class="arch-output-name">dist/index.html</span>
                                     <span class="arch-output-desc">
-                                        Single file — HTML, CSS, and JS all in one
+                                        Self-contained — markup and client JS inlined
                                     </span>
                                 </div>
                             </div>
+                            <hr class="arch-divider" />
                             <div class="arch-row">
                                 <div class="arch-inputs">
                                     <div class="arch-file arch-file--assets">
@@ -124,13 +159,7 @@ export function App() {
                         <li class="req-item">
                             <strong class="req-name">Node.js</strong>
                             <span class="req-version">v24+</span>
-                            <span class="req-desc">
-                                Everything else is installed automatically
-                            </span>
-                        </li>
-                        <li class="req-item">
-                            <strong class="req-name">TypeScript</strong>
-                            <span class="req-desc">Installed during init</span>
+                            <span class="req-desc">Everything else is installed automatically</span>
                         </li>
                     </ul>
                 </section>
@@ -139,7 +168,7 @@ export function App() {
                 <div>
                     <p>
                         Built with{' '}
-                        <a href="https://iambrian.com/scratch" target="_blank" rel="noopener">
+                        <a href="https://iambrian.com/skrapa" target="_blank" rel="noopener">
                             Skrapa v{VERSION}
                         </a>
                     </p>

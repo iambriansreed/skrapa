@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.3](https://github.com/iambriansreed/skrapa/compare/v0.3.2...v0.3.3) (2026-06-18)
+
+
+### Features
+
+* rename project from "stsx" to "skrapa" and update related files ([1267f50](https://github.com/iambriansreed/skrapa/commit/1267f5075153eaa8ef776ba73ab5a0cf2bb94b7a))
+
 ## 0.3.2 (2026-06-01)
 
 Initial public release line. `skrapa` scaffolds and serves static sites built from TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config.

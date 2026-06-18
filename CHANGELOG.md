@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.0](https://github.com/iambriansreed/skrapa/compare/v0.3.4...v0.4.0) (2026-06-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* types file is now skrapa.d.ts; delete your old global.d.ts after upgrading to avoid duplicate global declarations.
+
+### Features
+
+* rename global.d.ts to skrapa.d.ts and auto-sync it ([b7c036f](https://github.com/iambriansreed/skrapa/commit/b7c036f7d22d0986ea045f7628e2ac47f2ef2864))
+
 ## [0.3.4](https://github.com/iambriansreed/skrapa/compare/v0.3.3...v0.3.4) (2026-06-18)
 
 

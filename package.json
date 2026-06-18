@@ -6,7 +6,7 @@
         "dev": "npx tsx src/scripts/dev.ts",
         "dev:bin": "npx tsx src/scripts/dev.ts -bin",
         "dev:template": "npx tsx src/scripts/dev.ts -template",
-        "build": "tsc && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js && cp global.d.ts template/global.d.ts",
+        "build": "tsc && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js && cp skrapa.d.ts template/skrapa.d.ts",
         "postbuild": "chmod +x bin/skrapa.js",
         "format": "prettier --write src/**/*.{ts,tsx,json,css}",
         "lint": "eslint src/**/*.{ts,tsx}",
@@ -19,7 +19,7 @@
     "files": [
         "bin/",
         "template/",
-        "global.d.ts"
+        "skrapa.d.ts"
     ],
     "bin": {
         "skrapa": "bin/skrapa.js"

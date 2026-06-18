@@ -8,7 +8,7 @@
  * Dev mode runs a local server on port 8080 with live reload via WebSocket. File changes in the input directory trigger automatic rebuilds, and asset changes are copied on-the-fly, providing instant feedback during development.
  *
  * Usage:
- *   npx skrapa init     # Set up a new Skrapa project
+ *   npx skrapa          # Set up a new Skrapa project
  *   npx skrapa build    # Build once
  *   npx skrapa dev      # Dev server with HMR
  *
@@ -230,7 +230,22 @@ function parseFlags(): Partial<Config> {
     return flags;
 }
 
-function initConfig() {
+type InitContext = {
+    directory: {
+        input: string;
+        output: string;
+        assets: string;
+    };
+    config: Config;
+    WORKING_DIR: string;
+};
+
+/**
+ * Initialize the build context by loading the config, resolving paths, and syncing type declarations.
+ *
+ * It returns the resolved directory paths, the final config, and the working directory for temporary build files.
+ */
+function initContext(): InitContext {
     log.info(`Skrapa v${VERSION}\n`);
 
     const flagConfig = parseFlags();
@@ -253,8 +268,22 @@ function initConfig() {
     // Resolve root to an absolute path so require() and all derived paths
     // (input/output/assets/WORKING_DIR) follow --root instead of the cwd.
     config.root = path.resolve(CWD_DIR, config.root);
-    const WORKING_DIR = path.join(config.root, '.skrapa');
 
+    // Sync the project's skrapa.d.ts with the type declarations bundled in
+    // the installed skrapa package.
+    {
+        const src = path.join(__dirname, '../skrapa.d.ts');
+        const dest = path.join(config.root, 'skrapa.d.ts');
+        const next = fs.readFileSync(src, 'utf-8');
+        const current = fs.existsSync(dest) ? fs.readFileSync(dest, 'utf-8') : null;
+
+        if (current !== next) {
+            fs.writeFileSync(dest, next);
+            log.success(`${current === null ? 'Added' : 'Updated'} skrapa.d.ts`);
+        }
+    }
+
+    const WORKING_DIR = path.join(config.root, '.skrapa');
     const input = config.input ? path.resolve(config.root, config.input) : '';
 
     const output = config.output ? path.resolve(config.root, config.output) : '';
@@ -289,10 +318,11 @@ function initConfig() {
 // ============================================================================
 
 // A page module exports `Page()`, which returns either the body HTML as a
-// string or a `Page` object (see global.d.ts) that can also set the shared
+// string or a `Page` object (see skrapa.d.ts) that can also set the shared
 // template's head/title and the page's client JS.
-export async function build(cfg?: ReturnType<typeof initConfig>) {
-    const { directory, config, WORKING_DIR } = cfg ?? initConfig();
+function build(): InitContext {
+    const cfg = initContext();
+    const { directory, config, WORKING_DIR } = cfg;
 
     exe(`cd ${config.root} && tsc`);
     exe(`cd ${config.root} && tsc -p tsconfig.client.json`);
@@ -346,8 +376,7 @@ export async function build(cfg?: ReturnType<typeof initConfig>) {
         const pageDir = path.relative(compiledDir, path.dirname(file));
 
         const result: Page = PageFn();
-        const page: Exclude<Page, string> =
-            typeof result === 'string' ? { body: result } : result;
+        const page: Exclude<Page, string> = typeof result === 'string' ? { body: result } : result;
         const { body = '', head = '', title } = page;
 
         // Client JS: an explicit `clientJs` list loads exactly those entries;
@@ -398,22 +427,18 @@ export async function build(cfg?: ReturnType<typeof initConfig>) {
 
     // Clean up temporary build directory
     // exe(`rm -rf ${WORKING_DIR}`);
+
+    return cfg;
 }
 
 // ============================================================================
 // DEV
 // ============================================================================
-
-export async function dev() {
-    const cfg = initConfig();
-    const { directory, config } = cfg;
-
+async function dev() {
     log.info('\nDev mode starting...\n');
 
     // Initial build
-    await build(cfg);
-
-    //
+    const { directory, config } = build();
 
     const MIME_TYPES: Record<string, string> = {
         '.html': 'text/html',
@@ -659,7 +684,7 @@ export async function dev() {
             `\n⚡ ${color.cyan}http://${config.host}:${config.port}${color.reset}  ${color.gray}ctrl+C to stop${color.reset}\n`
         );
         setTimeout(() => {
-            if (clients.size === 0) exe(`open http://${config.host}:${config.port}`);
+            // if (clients.size === 0) exe(`open http://${config.host}:${config.port}`);
         }, 1500);
     });
 
@@ -675,8 +700,9 @@ export async function dev() {
 // INIT
 // ============================================================================
 
-export async function init() {
+async function init() {
     console.log(`\n${color.cyan}Skrapa${color.reset} ${color.gray}v${VERSION}${color.reset}`);
+
     log.gray('Initializing...\n');
 
     const rootPath = (...paths: string[]) => path.join(CWD_DIR, ...paths);
@@ -708,10 +734,6 @@ export async function init() {
     } else {
         fs.writeFileSync(gitIgnorePath, gitIgnoreEntries.join('\n') + '\n');
     }
-
-    // copy ./global.d.ts to  rootPath(relPath)
-    const globalTypes = path.join(__dirname, '../global.d.ts');
-    fs.copyFileSync(globalTypes, rootPath('global.d.ts'));
 
     const pkgPath = rootPath('package.json');
 

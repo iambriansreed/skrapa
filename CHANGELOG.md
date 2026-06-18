@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.4](https://github.com/iambriansreed/skrapa/compare/v0.3.3...v0.3.4) (2026-06-18)
+
+
+### Bug Fixes
+
+* update release script to include npm login before publishing ([6cff298](https://github.com/iambriansreed/skrapa/commit/6cff2987e4da6eedc9e7e320d0f19c87f46e6e12))
+
 ## [0.3.3](https://github.com/iambriansreed/skrapa/compare/v0.3.2...v0.3.3) (2026-06-18)
 
 

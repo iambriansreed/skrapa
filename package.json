@@ -14,7 +14,7 @@
         "test": "echo \"Error: no test specified\" && exit 1",
         "clean": "rm -rf dist bin .skrapa",
         "dev-pack": "npm run clean && npm run build && npm pack && rm -f ../skrapa-*.tgz && mv skrapa-*.tgz ../ && cd .. && rm -rf package && tar -xzf skrapa-*.tgz && cd package && npm link",
-        "release": "npm run build & npm version patch && npm publish"
+        "release": "npm run build && commit-and-tag-version && git push --follow-tags && npm publish"
     },
     "files": [
         "bin/",
@@ -27,6 +27,7 @@
     "license": "ISC",
     "devDependencies": {
         "@types/node": "^25.6.0",
+        "commit-and-tag-version": "^12.7.3",
         "tsx": "^4.21.0",
         "typescript": "^6.0.3"
     },

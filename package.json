@@ -4,6 +4,7 @@
     "author": "iambriansreed",
     "scripts": {
         "dev": "npx tsx src/scripts/dev.ts",
+        "predev": "cp skrapa.d.ts template/skrapa.d.ts && mkdir -p template/.github/workflows && cp .github/workflows/deploy.yml template/.github/workflows/deploy.yml",
         "dev:bin": "npx tsx src/scripts/dev.ts -bin",
         "dev:template": "npx tsx src/scripts/dev.ts -template",
         "build": "tsc && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js && cp skrapa.d.ts template/skrapa.d.ts",

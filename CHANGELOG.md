@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.1](https://github.com/iambriansreed/skrapa/compare/v0.4.0...v0.4.1) (2026-06-19)
+
+
+### Features
+
+* update GitHub Actions workflow and scripts for improved deployment and template management ([a48e9e2](https://github.com/iambriansreed/skrapa/commit/a48e9e2e28708ed0e64be22b9b9f7d488bbd4e73))
+
 ## [0.4.0](https://github.com/iambriansreed/skrapa/compare/v0.3.4...v0.4.0) (2026-06-18)
 
 

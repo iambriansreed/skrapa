@@ -22,6 +22,7 @@ import type { Socket } from 'node:net';
 
 export const Fragment = 'Fragment';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamically getting the version number allowed
 const VERSION: string = require('../package.json').version;
 
 const CWD_DIR = path.join(process.cwd());
@@ -65,7 +66,7 @@ export function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]):
               // keys are never used but in case someone passes them, we should ignore them to avoid invalid attributes in the output
               .filter((k) => k !== 'children' && k !== 'key')
               .map((k) => {
-                  let value = props[k as keyof Props] as unknown;
+                  const value = props[k as keyof Props] as unknown;
 
                   if (k === 'style') return ` ${k}="${styleToCss(props[k])}"`;
 
@@ -92,8 +93,8 @@ export function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]):
             typeof c === 'string'
                 ? c
                 : c !== null && c !== undefined && c !== false
-                  ? String(c)
-                  : ''
+                ? String(c)
+                : ''
         )
         .join('');
 
@@ -367,6 +368,7 @@ function build(): InitContext {
     let pageCount = 0;
 
     for (const file of pageFiles) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamically getting all pages, allowed
         const mod = require(file);
         const PageFn = mod.Page;
         // A page is an index module that exports a `Page` function — skip the rest.
@@ -642,7 +644,11 @@ async function dev() {
                         return;
                     }
                     log.success(
-                        `${color.reset}[${new Date().toLocaleTimeString()}]${color.green} Build complete → reloading (${clients.size} client${clients.size === 1 ? '' : 's'})`
+                        `${color.reset}[${new Date().toLocaleTimeString()}]${
+                            color.green
+                        } Build complete → reloading (${clients.size} client${
+                            clients.size === 1 ? '' : 's'
+                        })`
                     );
                     broadcast('reload');
                 }

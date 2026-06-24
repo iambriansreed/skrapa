@@ -4,18 +4,21 @@
     "author": "iambriansreed",
     "scripts": {
         "dev": "npx tsx src/scripts/dev.ts",
-        "predev": "cp skrapa.d.ts template/skrapa.d.ts && mkdir -p template/.github/workflows && cp .github/workflows/deploy.yml template/.github/workflows/deploy.yml",
+        "predev": "cp skrapa.d.ts template/skrapa.d.ts",
         "dev:bin": "npx tsx src/scripts/dev.ts -bin",
         "dev:template": "npx tsx src/scripts/dev.ts -template",
-        "build": "tsc && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js && cp skrapa.d.ts template/skrapa.d.ts",
-        "postbuild": "chmod +x bin/skrapa.js",
-        "format": "prettier --write src/**/*.{ts,tsx,json,css}",
-        "lint": "eslint src/**/*.{ts,tsx}",
-        "lint:css": "stylelint src/**/*.css",
+        "build": "npm run build:release && node bin/skrapa.js build",
+        "build:release": "tsc && cp skrapa.d.ts template/skrapa.d.ts && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js && chmod +x bin/skrapa.js",
+        "preview": "npm run build && npx http-server dist -p 8090 -c-1 -o",
+        "preview:template": "npm run build -- --root template && npx http-server template/dist -p 8080 -c-1 -o",
+        "format": "prettier --write src/**/*.{ts,tsx,json,css} template/**/*.{ts,tsx,json,css}",
+        "lint": "npx eslint src/**/*.{ts,tsx} template/src/**/*.{ts,tsx}",
+        "lint:fix": "npm run lint -- --fix",
+        "lint:css": "npx stylelint assets/**/*.css template/**/*.css",
         "test": "echo \"Error: no test specified\" && exit 1",
         "clean": "rm -rf dist bin .skrapa",
-        "dev-pack": "npm run clean && npm run build && npm pack && rm -f ../skrapa-*.tgz && mv skrapa-*.tgz ../ && cd .. && rm -rf package && tar -xzf skrapa-*.tgz && cd package && npm link",
-        "release": "npm run build && commit-and-tag-version && git push --follow-tags && npm login && npm publish"
+        "dev-pack": "npm run clean && npm run build:release && npm pack && rm -f ../skrapa-*.tgz && mv skrapa-*.tgz ../ && cd .. && rm -rf package && tar -xzf skrapa-*.tgz && cd package && npm link",
+        "release": "npm run build:release && commit-and-tag-version && git push --follow-tags && npm login && npm publish"
     },
     "files": [
         "bin/",
@@ -27,10 +30,15 @@
     },
     "license": "ISC",
     "devDependencies": {
+        "@eslint/js": "^9.39.4",
         "@types/node": "^25.6.0",
         "commit-and-tag-version": "^12.7.3",
-        "tsx": "^4.21.0",
-        "typescript": "^6.0.3"
+        "eslint": "^9.39.4",
+        "prettier": "^3.8.4",
+        "stylelint": "^17.13.0",
+        "stylelint-config-standard": "^40.0.0",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.62.0"
     },
     "engines": {
         "node": ">=24"

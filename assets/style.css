@@ -5,10 +5,12 @@
     margin: 0;
     padding: 0;
 }
+
 html {
-    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     tab-size: 4;
 }
+
 img,
 picture,
 video,
@@ -17,12 +19,14 @@ svg {
     display: block;
     max-width: 100%;
 }
+
 input,
 button,
 textarea,
 select {
     font: inherit;
 }
+
 p,
 h1,
 h2,
@@ -32,26 +36,31 @@ h5,
 h6 {
     overflow-wrap: break-word;
 }
+
 a {
     color: inherit;
 }
+
 :root {
     --bg: #0f0f11;
     --surface: #1a1a1f;
     --border: #2a2a32;
     --text: #e8e8f0;
-    --muted: #888899;
+    --muted: #889;
     --accent: #7c6af7;
-    --accent2: #888899;
+    --accent2: #889;
 }
+
 @keyframes bg-spin {
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(90deg);
     }
 }
+
 body::before {
     content: '';
     position: fixed;
@@ -59,7 +68,7 @@ body::before {
     right: -10%;
     width: 70vmin;
     height: 70vmin;
-    background: url(skrapa.svg) center / contain no-repeat;
+    background: url("skrapa.svg") center / contain no-repeat;
     filter: invert(1);
     opacity: 0.04;
     pointer-events: none;
@@ -67,6 +76,7 @@ body::before {
     animation: bg-spin linear both;
     animation-timeline: scroll();
 }
+
 body {
     font-family:
         system-ui,
@@ -80,6 +90,7 @@ body {
     display: flex;
     flex-direction: column;
 }
+
 header {
     text-align: center;
     padding: 7rem 2rem 5rem;
@@ -88,17 +99,20 @@ header {
     align-items: center;
     gap: 1.75rem;
 }
+
 @keyframes logo-shimmer {
     0%,
     100% {
         color: var(--accent);
         opacity: 0.7;
     }
+
     50% {
         color: color-mix(in srgb, var(--accent) 40%, #fff);
         opacity: 1;
     }
 }
+
 .logo {
     position: fixed;
     top: 0.5rem;
@@ -106,14 +120,17 @@ header {
     z-index: 10;
     animation: logo-shimmer 12s ease-in-out infinite;
 }
+
 @keyframes shimmer {
     0% {
         background-position: -200% center;
     }
+
     100% {
         background-position: 200% center;
     }
 }
+
 h1 {
     font-size: 3.9rem;
     font-weight: 700;
@@ -121,19 +138,21 @@ h1 {
     line-height: 1.1;
     background: linear-gradient(120deg, var(--text) 25%, var(--accent) 50%, var(--text) 75%);
     background-size: 600% auto;
-    -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     animation: shimmer 24s linear infinite;
 }
+
 .tagline {
     font-size: 1.15rem;
     color: var(--muted);
     max-width: 38ch;
 }
+
 pre.cli.hero-cmd {
     font-size: 120%;
 }
+
 .github-link {
     position: fixed;
     top: 1.25rem;
@@ -142,12 +161,15 @@ pre.cli.hero-cmd {
     transition: opacity 0.15s;
     z-index: 10;
 }
+
 .github-link:hover {
     opacity: 1;
 }
+
 .github-link img {
     filter: invert(1);
 }
+
 main {
     flex: 1;
     width: 100%;
@@ -158,8 +180,8 @@ main {
     flex-direction: column;
     gap: 4rem;
 }
+
 h2 {
-    font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 1.25rem;
     color: var(--muted);
@@ -167,12 +189,14 @@ h2 {
     letter-spacing: 0.08em;
     font-size: 0.8rem;
 }
+
 .feature-grid {
     list-style: none;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
 }
+
 .feature-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -183,24 +207,28 @@ h2 {
     gap: 0.4rem;
     transition: transform 0.6s ease;
 }
+
 @media (hover: hover) {
     .feature-card:hover {
         transform: scale(1.25);
         transition: transform 0.15s ease;
         z-index: 1;
         position: relative;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 8px 32px rgb(0 0 0 / 50%);
     }
 }
+
 .feature-card strong {
     font-size: 1rem;
     font-weight: 600;
 }
+
 .feature-card p {
     font-size: 0.9rem;
     color: var(--muted);
     line-height: 1.5;
 }
+
 .copy-btn {
     position: absolute;
     top: 50%;
@@ -218,12 +246,14 @@ h2 {
         color 0.15s,
         background 0.15s;
 }
+
 .copy-btn:hover,
 .copy-btn.copied {
     background: var(--accent);
     color: #fff;
     border-color: var(--accent);
 }
+
 pre.cli {
     cursor: pointer;
     background: var(--surface);
@@ -251,40 +281,48 @@ pre.cli {
         box-shadow: 0 0 0 1px var(--accent);
     }
 }
+
 footer {
     font-size: 0.85rem;
     color: var(--muted);
     border-top: 1px solid var(--border);
 }
+
 .how-it-works p {
     color: var(--muted);
     margin-bottom: 1.5rem;
 }
+
 .arch {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 1.5rem 2rem;
 }
+
 .arch-rows {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
+
 .arch-row {
     display: flex;
     align-items: center;
     gap: 2rem;
 }
+
 .arch-divider {
     display: none;
 }
+
 .arch-inputs {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
 }
+
 .arch-file {
     display: flex;
     flex-direction: column;
@@ -294,24 +332,29 @@ footer {
     border-radius: 6px;
     border: 1px solid var(--border);
 }
-.arch-file--assets {
+
+.arch-file-assets {
     border-style: dashed;
 }
+
 .arch-file-name {
     font-family: ui-monospace, monospace;
     font-size: 0.875rem;
     color: var(--text);
 }
+
 .arch-file-desc {
     font-size: 0.75rem;
     color: var(--muted);
 }
+
 .arch-arrow {
     font-size: 1.5rem;
     color: var(--accent);
     opacity: 0.5;
     flex-shrink: 0;
 }
+
 .arch-output {
     display: flex;
     flex-direction: column;
@@ -324,16 +367,19 @@ footer {
     flex: 0 0 35%;
     align-self: stretch;
 }
+
 .arch-output-name {
     font-family: ui-monospace, monospace;
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--accent);
 }
+
 .arch-output-desc {
     font-size: 0.75rem;
     color: var(--muted);
 }
+
 /* .arch-output--copy {
     border-color: var(--border);
 }
@@ -346,6 +392,7 @@ footer {
     flex-direction: column;
     gap: 0.75rem;
 }
+
 .req-item {
     display: flex;
     align-items: baseline;
@@ -355,12 +402,14 @@ footer {
     border-radius: 8px;
     padding: 0.85rem 1.25rem;
 }
+
 .req-name {
     font-family: ui-monospace, monospace;
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--text);
 }
+
 .req-version {
     font-family: ui-monospace, monospace;
     font-size: 0.875rem;
@@ -370,23 +419,28 @@ footer {
     padding: 0.2rem 0.6rem;
     border-radius: 5px;
 }
+
 .req-desc {
     margin-left: auto;
     font-size: 0.875rem;
     color: var(--muted);
 }
+
 .req-desc code {
     font-family: ui-monospace, monospace;
     font-size: 0.8rem;
     color: var(--muted);
 }
+
 .getting-started p {
     color: var(--muted);
     margin-bottom: 0.5rem;
 }
+
 .getting-started p + pre {
     margin-bottom: 1.5rem;
 }
+
 footer > div {
     display: flex;
     justify-content: space-between;
@@ -395,43 +449,54 @@ footer > div {
     margin: 0 auto;
     padding: 1.5rem 2rem;
 }
+
 footer a {
     color: var(--accent);
     text-decoration: none;
 }
+
 footer a:hover {
     text-decoration: underline;
 }
-@media (max-width: 640px) {
+
+@media (width <= 640px) {
     .logo,
     .github-link {
         position: absolute;
     }
+
     header {
         padding: 6rem 1.25rem 3.5rem;
     }
+
     h1 {
         font-size: 2.75rem;
     }
+
     main {
         padding: 0 1.25rem 3rem;
         gap: 3rem;
     }
+
     .arch {
         padding: 1.25rem 1rem;
     }
+
     .arch-row {
         flex-direction: column;
         align-items: stretch;
         gap: 0.25rem;
     }
+
     .arch-arrow {
         align-self: center;
         transform: rotate(90deg);
     }
+
     .arch-output {
         flex: 1 1 auto;
     }
+
     .arch-divider {
         display: block;
         width: 100%;
@@ -440,17 +505,21 @@ footer a:hover {
         border: 0;
         border-top: 1px solid var(--border-light, #3a3a44);
     }
+
     .arch-file-name,
     .arch-output-name {
         overflow-wrap: anywhere;
     }
+
     .req-item {
         flex-wrap: wrap;
     }
+
     .req-desc {
         margin-left: 0;
         flex-basis: 100%;
     }
+
     footer > div {
         flex-direction: column;
         align-items: center;

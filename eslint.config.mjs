@@ -1,27 +1,19 @@
 import js from '@eslint/js';
-import globals from 'globals';
+import skrapa from './eslint.plugin.mjs';
 import tseslint from 'typescript-eslint';
-import react from 'eslint-plugin-react';
 import { defineConfig } from 'eslint/config';
 
 export default defineConfig([
     {
         files: ['**/*.{ts,tsx}'],
-        plugins: { js },
+        plugins: {
+            js,
+            skrapa,
+        },
         extends: ['js/recommended'],
-        languageOptions: { globals: { ...globals.browser, ...globals.node } },
+        languageOptions: skrapa.languageOptions,
     },
     tseslint.configs.recommended,
-    react.configs.flat.recommended,
-    {
-        settings: {
-            react: { version: '19.0' },
-        },
-        rules: {
-            'react/react-in-jsx-scope': 'off',
-            'react/jsx-uses-react': 'off',
-            'react/void-dom-elements-no-children': 'error',
-            'react/jsx-key': 'off',
-        },
-    },
+    skrapa.configs.recommended,
 ]);
+

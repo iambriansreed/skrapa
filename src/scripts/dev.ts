@@ -1,5 +1,5 @@
 import { exec, execSync, spawn } from 'node:child_process';
-import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 
 let server: ChildProcess | null = null;
 let restartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -33,7 +33,7 @@ function start() {
         cmd += ' --root template';
     }
 
-    server = exec(cmd, { stdio: 'inherit' } as any);
+    server = exec(cmd);
     server.stdout?.pipe(process.stdout);
     server.stderr?.pipe(process.stderr);
 }

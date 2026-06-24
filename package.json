@@ -1,6 +1,6 @@
 {
     "name": "skrapa",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "author": "iambriansreed",
     "scripts": {
         "dev": "npx tsx src/scripts/dev.ts",

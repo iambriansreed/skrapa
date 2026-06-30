@@ -2,6 +2,23 @@
     "name": "skrapa",
     "version": "0.4.3",
     "author": "iambriansreed",
+    "homepage": "https://skrapa.iambrian.com",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/iambriansreed/skrapa.git"
+    },
+    "bugs": {
+        "url": "https://github.com/iambriansreed/skrapa/issues"
+    },
+    "keywords": [
+        "static-site-generator",
+        "ssg",
+        "jsx",
+        "typescript",
+        "static-site",
+        "no-bundler",
+        "zero-config"
+    ],
     "scripts": {
         "dev": "npx tsx src/scripts/dev.ts",
         "predev": "cp skrapa.d.ts template/skrapa.d.ts",
@@ -43,6 +60,5 @@
     "engines": {
         "node": ">=24"
     },
-    "keywords": [],
     "description": "Build static sites with TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config."
 }

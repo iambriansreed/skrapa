@@ -1,5 +1,7 @@
-const btn = document.getElementById('counter') as HTMLButtonElement;
 let count = 0;
+
+const btn = document.getElementById('counter') as HTMLButtonElement;
+
 btn?.addEventListener('click', () => {
     count++;
     btn.textContent = `count is ${count}`;

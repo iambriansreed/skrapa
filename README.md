@@ -1,8 +1,12 @@
 # Skrapa
 
+[![npm version](https://img.shields.io/npm/v/skrapa.svg)](https://www.npmjs.com/package/skrapa)
+
 Build static sites with TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config.
 
 Requires Node.js v24+.
+
+**[Website](https://skrapa.iambrian.com)** · **[GitHub](https://github.com/iambriansreed/skrapa)** · **[npm](https://www.npmjs.com/package/skrapa)**
 
 ## How it works
 
@@ -90,3 +94,7 @@ All too often I wanted to spin up a simple static site and found the usual stack
 Skrapa is the result. It keeps the one thing I actually missed — writing layout as JSX in TypeScript — and throws out the rest. Pages compile to static HTML at build time with their client JS inlined, so there's no framework and no runtime in the browser. A dev server with live reload keeps the feedback loop tight while you work.
 
 I built it for myself and still use it daily: [my personal site](https://iambrian.com), throwaway prototypes, quick dashboards, and one-off reports. If you've ever wanted a static page without booting up an entire toolchain to get there, it might suit you too.
+
+## License
+
+[ISC](LICENSE) © [iambriansreed](https://github.com/iambriansreed)

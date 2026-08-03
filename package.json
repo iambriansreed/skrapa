@@ -16,26 +16,22 @@
         "jsx",
         "typescript",
         "static-site",
-        "no-bundler",
-        "zero-config"
+        "zero-dependency",
+        "zero-config",
+        "npx"
     ],
     "scripts": {
+        "build": "npx tsx src/scripts/build.ts",
         "dev": "npx tsx src/scripts/dev.ts",
-        "predev": "cp skrapa.d.ts template/skrapa.d.ts",
-        "dev:bin": "npx tsx src/scripts/dev.ts -bin",
-        "dev:template": "npx tsx src/scripts/dev.ts -template",
-        "build": "npm run build:release && node bin/skrapa.js build",
-        "build:release": "tsc && cp skrapa.d.ts template/skrapa.d.ts && mkdir -p bin && cp .skrapa/src/bin/skrapa.js bin/skrapa.js && chmod +x bin/skrapa.js",
-        "preview": "npm run build && npx http-server dist -p 8090 -c-1 -o",
-        "preview:template": "npm run build -- --root template && npx http-server template/dist -p 8080 -c-1 -o",
-        "format": "prettier --write src/**/*.{ts,tsx,json,css} template/**/*.{ts,tsx,json,css}",
-        "lint": "npx eslint src/**/*.{ts,tsx} template/src/**/*.{ts,tsx}",
+        "test": "npm run test:unit && npm run test:e2e",
+        "test:e2e": "npx tsx src/scripts/test.ts",
+        "test:unit": "npx tsx --test \"src/**/*.test.ts\"",
+        "lint": "npx eslint .",
         "lint:fix": "npm run lint -- --fix",
-        "lint:css": "npx stylelint assets/**/*.css template/**/*.css",
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "clean": "rm -rf dist bin .skrapa",
-        "dev-pack": "npm run clean && npm run build:release && npm pack && rm -f ../skrapa-*.tgz && mv skrapa-*.tgz ../ && cd .. && rm -rf package && tar -xzf skrapa-*.tgz && cd package && npm link",
-        "release": "npm run build:release && commit-and-tag-version && git push --follow-tags && npm login && npm publish"
+        "lint:css": "npx stylelint \"assets/**/*.css\" \"src/**/*.css\" \"template/**/*.css\"",
+        "clean": "rm -rf dist bin .tmp .skrapa template/dist template/.skrapa",
+        "prepack": "rm -rf template/.skrapa template/dist",
+        "release": "npm run build && commit-and-tag-version && git push --follow-tags && npm login && npm publish"
     },
     "files": [
         "bin/",
@@ -43,14 +39,18 @@
         "skrapa.d.ts"
     ],
     "bin": {
-        "skrapa": "bin/skrapa.js"
+        "skrapa": "bin/index.js"
     },
-    "license": "ISC",
+    "license": "MIT",
     "devDependencies": {
         "@eslint/js": "^9.39.4",
-        "@types/node": "^25.6.0",
+        "@eslint/json": "^2.0.1",
+        "@types/node": "^25.9.5",
         "commit-and-tag-version": "^12.7.3",
         "eslint": "^9.39.4",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-jsdoc": "^63.3.2",
+        "eslint-plugin-prettier": "^5.5.6",
         "prettier": "^3.8.4",
         "stylelint": "^17.13.0",
         "stylelint-config-standard": "^40.0.0",
@@ -60,5 +60,5 @@
     "engines": {
         "node": ">=24"
     },
-    "description": "Build static sites with TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config."
+    "description": "Build static sites with TypeScript JSX templates and TypeScript client-side code. No framework, no virtual DOM, no config. A single zero-dependency script, run with npx."
 }

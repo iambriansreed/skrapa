@@ -40,7 +40,7 @@ All notable changes to this project will be documented in this file. See [commit
 
 ## 0.3.2 (2026-06-01)
 
-Initial public release line. `skrapa` scaffolds and serves static sites built from TypeScript JSX templates and TypeScript client-side code — no framework, no virtual DOM, no bundler config.
+Initial public release line. `skrapa` scaffolds and serves static sites built from TypeScript JSX templates and TypeScript client-side code. No framework, no virtual DOM, no bundler config.
 
 ### Features
 

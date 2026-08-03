@@ -1,0 +1,29 @@
+# Contributing
+
+Skrapa is self-hosted: its own docs site (`src/`) is built with the Skrapa CLI (`src/bin/`), and the CLI itself is a TypeScript project compiled and bundled into a single `bin/index.js`.
+
+## Layout
+
+- `src/bin/` is the CLI source: `index.ts` (entry and command dispatch), one `cmd-*.ts` per command (`cmd-build.ts`, `cmd-dev.ts`, `cmd-init.ts`, `cmd-page.ts`), and the shared modules they build on (`config.ts` for flag/config-file precedence, `jsx.ts` for the build-time JSX runtime, `bundle.ts` for the CommonJS bundler, `format-html.ts` for the dev-only pretty printer, `utils.ts`, `types.d.ts`).
+- `src/` (everything outside `bin/`) is the docs site itself, built by the CLI.
+- `src/scripts/` holds maintainer-only scripts (not shipped) that drive local dev and packaging.
+- `template/` is the scaffold copied into new projects by `skrapa init`.
+- `.skrapa/` is `tsc` output, mirroring the source tree. Never shipped.
+- `bin/index.js` is the CLI, bundled from `.skrapa/src/bin/index.js` and everything it `require`s (see `src/bin/bundle.ts`) into one file with no relative-`require` dependencies on its siblings, since only `bin/` ships in the published package.
+
+## Scripts
+
+| Script | What it does |
+| --- | --- |
+| `npm run build` | Compiles the CLI (`tsc`), bundles `.skrapa/src/bin/index.js` into `bin/index.js`, then runs that freshly built CLI on itself (`node bin/index.js build`) to produce the docs site in `dist/`. Invoked by path, never as `npx skrapa`: `npx` resolves through the global bin, so a missing or stale `npm link` would silently build this site with the *published* skrapa and still go green. Nothing here touches the global link; `npm run dev` does that. |
+| `npm run dev` | Runs `npm run build` once and `npm link`s the checkout (so the `npx skrapa` calls below resolve here), then starts two dev servers in parallel: one in the repo root for the docs site, one in a freshly scaffolded `.tmp/` project (built from `template/`). Each is logged with a colored `[root]`/`[tmp]` prefix. Watches `src/bin/**`: rebuilds the CLI and restarts both servers. Watches `template/**`: rescaffolds `.tmp/` and restarts its server. Ctrl+C stops both cleanly. |
+| `npm run test` | Runs `test:unit` then `test:e2e`. Since the e2e run deliberately leaves a dev server up, this is a local command; never wire it into CI. |
+| `npm run test:unit` | Fast `node:test` unit tests (via `tsx`) for the pure modules: the JSX runtime, the bundler, the HTML formatter, page planning, and config loading, plus a check that `template/skrapa.d.ts` is byte-identical to the root `skrapa.d.ts` (the root is the source of truth; nothing copies it any more, so that test is what holds them together). No server, so it's the one CI runs. |
+| `npm run test:e2e` | End-to-end test (`src/scripts/test.ts`): scaffolds a fresh project from `template/` into `.tmp/` (reusing whatever `skrapa` is currently linked, so run `build` or `dev` first if `.tmp` or the link is stale), starts its dev server on a fixed port, and verifies the site, including that the `about/` page picks up its own `index.html`/CSS/`client.ts` instead of the root template's. Leaves the dev server running on completion so the scaffolded site can be poked at manually. |
+| `npm run lint` / `lint:fix` / `lint:css` | ESLint (with `eslint-plugin-prettier`, so it flags and `--fix`es formatting too) and Stylelint for CSS. Prettier otherwise runs on save; there is no standalone `format` script. |
+| `npm run clean` | Removes all build output (`dist`, `bin`, `.tmp`, `.skrapa`) from the repo and `template/`. |
+| `npm run release` | Rebuilds the CLI and docs site (`build`), then runs `commit-and-tag-version`, pushes tags, and publishes to npm. |
+
+## Notes for the CLI itself
+
+`bin/index.js` is a single bundled file on purpose. `package.json`'s `files` field only ships `bin/`, so the CLI can't `require` sibling compiled modules the way `.skrapa/src/bin/*.js` does during development. `src/bin/bundle.ts` is a small CommonJS-style bundler that walks the `require(...)` graph from a compiled entry file and inlines everything reachable under its own directory; anything it can't resolve there (Node builtins, npm packages, files outside that directory) is left as a literal `require(...)` call, which falls through to the real `require` of wherever the bundle ends up running. `cmd-build.ts` reuses the same bundler for a project's client-side `<script src="...ts">` tags, walking `.skrapa/<input>` instead.

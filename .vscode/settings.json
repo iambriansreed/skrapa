@@ -5,5 +5,10 @@
     },
     "eslint.run": "onType",
     "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-    "cSpell.words": ["skrapa"]
+    "cSpell.words": ["skrapa", "Slugified"],
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always"
+    }
 }

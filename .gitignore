@@ -1,7 +1,8 @@
 node_modules
+/bin
 dist
-bin
-!src/*
-index.js
 .skrapa
-prompt.md
+.tmp
+.env*
+.DS_Store
+.claude/settings.local.json

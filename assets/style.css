@@ -1,3 +1,15 @@
+/* ==========================================================================
+   DESIGN SYSTEM
+
+   Six spacing steps, five type sizes off a 1rem floor, one radius, one
+   measure. Every rule below draws from those tokens, or from a multiple of
+   one; if a value is not expressible that way, the scale is wrong.
+
+   Layout is done with element and structural selectors wherever possible, so
+   pages stay free of decorative class names. `.prose` is the one shared page
+   shape (docs and about); home builds its sections from `main > section`.
+   ========================================================================== */
+
 *,
 *::before,
 *::after {
@@ -7,9 +19,18 @@
 }
 
 html {
+    /* Pins the rem base at 18px rather than inheriting the browser's 16px
+       default. Every rem in this file scales from here, spacing included, so
+       this one value sizes the whole site. */
+    font-size: 18px;
     text-size-adjust: 100%;
     tab-size: 4;
     scroll-behavior: smooth;
+    font-weight: 300;
+}
+
+html.docs-page {
+    font-size: 16px;
 }
 
 img,
@@ -28,121 +49,272 @@ select {
     font: inherit;
 }
 
-p,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    overflow-wrap: break-word;
-}
-
-a {
-    color: inherit;
-}
-
 :root {
-    --bg: #0f0f11;
-    --surface: #1a1a1f;
-    --surface-2: #141318;
-    --border: #2a2a32;
-    --text: #e8e8f0;
-    --muted: #8888a0;
-    --accent: #7c6af7;
-}
+    --bg: #0d0d10;
+    --surface: #191920;
+    --surface-2: #131319;
+    --text: #f0f0f7;
+    --muted: #9d9db5;
 
-@keyframes bg-shift {
-    0%,
-    100% {
-        background-color: var(--bg);
-    }
+    /* The accent is used in two opposite directions, and no single value
+       clears 4.5:1 in both:
+         - as a background behind white text (the button), it must be DARK
+         - as text on the near-black page (code, eyebrows), it must be LIGHT
+       At #7c6af7 the button label managed only 3.99. Darkening it to fix that
+       drops it to 3.84 as text; lightening it for text drops the label to
+       2.69. Hence one token per direction. */
+    --accent-bg: #6b57e8;
+    --accent-text: #a396ff;
 
-    50% {
-        background-color: #121017;
-    }
+    /* --border separates; --border-strong outlines things you can click or
+       have to read a value against, where WCAG wants 3:1. */
+    --border: #3d3d4b;
+    --border-strong: #6b6b85;
+
+    /* Six steps on a 4px grid. Every padding, margin and gap in this file
+       is one of these, or a multiple of one: calc(var(--sp-6) * 2) rather
+       than a --sp-8. If a value is not expressible that way, the scale is
+       wrong, not the rule. The two exceptions are marked where they occur,
+       and both are in em on purpose so they track their own type size. */
+    --sp-1: 0.25rem;
+    --sp-2: 0.5rem;
+    --sp-3: 0.75rem;
+    --sp-4: 1rem;
+    --sp-5: 1.5rem;
+    --sp-6: 2rem;
+
+    /* --fs-base is the floor: nothing on the site renders smaller than it.
+       It is 1rem, which html pins to 18px above, so that is the floor.
+       Every other size is a multiple of the base, so changing either the
+       base or the root rescales the page: 1 / 1.125 / 1.5, then two fluid
+       steps. */
+    --fs-base: 1rem;
+    --fs-md: calc(var(--fs-base) * 1.125);
+    --fs-lg: calc(var(--fs-base) * 1.5);
+    --fs-xl: clamp(calc(var(--fs-base) * 2), 7vw, calc(var(--fs-base) * 3));
+    --fs-display: clamp(calc(var(--fs-base) * 3), 9vw, calc(var(--fs-base) * 5));
+    --mono: ui-monospace, monospace;
+    --radius: 8px;
+
+    /* Comfortable line length for anything text-heavy. */
+    --measure: 60ch;
+
+    /* Height of the sticky nav: --sp-2 x 2 (18px) + the 26px mark + the 1px
+       border = 45px. Recompute this if the root size or the nav padding
+       changes; the hero subtracts it to fill exactly the rest of the
+       viewport. */
+    --nav-h: 2.5rem;
 }
 
 body {
     font-family:
-        system-ui,
-        -apple-system,
-        sans-serif;
-    font-size: 1.125rem;
+        Seravek, 'Gill Sans Nova', Ubuntu, Calibri, 'DejaVu Sans', source-sans-pro, sans-serif;
+    font-size: var(--fs-md);
     line-height: 1.6;
     color: var(--text);
     background-color: var(--bg);
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    animation: bg-shift 24s ease-in-out infinite;
+}
+
+/* Typography */
+
+h1,
+h2,
+h3 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    overflow-wrap: break-word;
+
+    /* Headings are short enough to even out across every line rather than
+       only protecting the last one. */
+    text-wrap: balance;
+}
+
+h1 {
+    font-size: var(--fs-xl);
+
+    /* Lighter than the other headings on purpose: at this size the weight
+       comes from the scale, so 400 reads as confident rather than shouted. */
+    font-weight: 400;
+    line-height: 1.1;
+}
+
+h2 {
+    font-size: var(--fs-lg);
+}
+
+h3 {
+    font-size: var(--fs-md);
+}
+
+p {
+    overflow-wrap: break-word;
+
+    /* Stops a single short word being stranded on the last line. Ignored by
+       browsers without support, which wrap as before. */
+    text-wrap: pretty;
+}
+
+a {
+    color: inherit;
+}
+
+strong {
+    font-weight: 600;
+}
+
+code,
+pre,
+.bar-value {
+    font-family: var(--mono);
+}
+
+/* Matches its surrounding text exactly. The usual 0.9em trick would put
+   inline code below the floor wherever it appeared. */
+:not(pre) > code {
+    font-size: 1em;
+    color: var(--accent-text);
+    background: color-mix(in srgb, var(--accent-text) 14%, transparent);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+}
+
+/* Centred, measured, muted. The shape every explanatory paragraph on the
+   home page takes, whether it sits under a heading or under a chart. */
+.section-lead,
+.chart-note,
+.why-not > p {
+    max-width: var(--measure);
+    margin: 0 auto var(--sp-6);
+    text-align: center;
+    color: var(--muted);
+    text-wrap: balance;
+}
+
+.chart-note {
+    margin: var(--sp-6) auto 0;
+    font-size: var(--fs-base);
+}
+
+/* The closing pointer to /about. `a` inherits colour, so the link inside
+   picks up the accent and keeps only its underline to mark it clickable. */
+.why-not em {
+    color: var(--accent-text);
+}
+
+.eyebrow {
+    margin-bottom: var(--sp-2);
+    text-align: center;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-text);
 }
 
 /* Nav */
+
 .nav {
     position: sticky;
     top: 0;
     z-index: 20;
-    display: flex;
+
+    /* Equal-width outer columns put the links at the true centre of the
+       viewport, not centred in the space the brand happens to leave. */
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.85rem 1.75rem;
+    gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-6);
     background: color-mix(in srgb, var(--bg) 55%, transparent);
     backdrop-filter: blur(14px) saturate(1.4);
     border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
-.brand {
+.nav a {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
-    font-weight: 600;
-    font-size: 1.05rem;
-    letter-spacing: -0.01em;
-    text-decoration: none;
-}
-
-.brand-mark {
-    color: var(--accent);
-}
-
-.nav-links {
-    display: flex;
-    align-items: center;
-    gap: 1.1rem;
-}
-
-.nav-links a {
-    display: flex;
     color: var(--muted);
     text-decoration: none;
     transition: color 0.15s;
 }
 
-.nav-links a:hover {
+.nav a:hover {
     color: var(--text);
 }
 
+.brand {
+    gap: var(--sp-2);
+    font-weight: 600;
+    color: var(--text);
+}
+
+.brand-mark {
+    color: var(--accent-text);
+}
+
+.nav-links {
+    display: flex;
+    justify-self: center;
+    gap: var(--sp-6);
+}
+
+.nav-icons {
+    display: flex;
+    justify-self: end;
+    gap: var(--sp-4);
+}
+
 /* Hero */
+
 .hero {
-    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.4rem;
-    padding: 5.5rem 2rem 4rem;
+    justify-content: center;
+    gap: var(--sp-4);
+    text-align: center;
+
+    /* Full-viewport slide. svh (not vh/dvh) so mobile browser chrome never
+       crops the command, and never resizes the hero as the chrome hides. */
+    min-height: calc(100svh - var(--nav-h));
+    padding: calc(var(--sp-6) * 2) var(--sp-6);
+}
+
+.hero h1 {
+    max-width: 22ch;
+    letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--text) 20%, var(--accent-text) 50%, var(--text) 80%);
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 200;
+    font-size: var(--fs-display);
+}
+
+.hero .cli {
+    width: max-content;
+    max-width: 100%;
+    font-size: var(--fs-lg);
+}
+
+.lead {
+    max-width: 54ch;
+    font-size: var(--fs-lg);
+    line-height: 1.55;
+    text-wrap: balance;
 }
 
 @keyframes logo-shimmer {
     0%,
     100% {
-        color: var(--accent);
+        color: var(--accent-text);
         opacity: 0.75;
     }
 
     50% {
-        color: color-mix(in srgb, var(--accent) 40%, #fff);
+        color: color-mix(in srgb, var(--accent-text) 40%, #fff);
         opacity: 1;
     }
 }
@@ -151,122 +323,64 @@ body {
     animation: logo-shimmer 12s ease-in-out infinite;
 }
 
-@keyframes shimmer {
-    0% {
-        background-position: -200% center;
-    }
-
-    100% {
-        background-position: 200% center;
-    }
+.btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4em 1.25em;
+    border: 1px solid var(--accent-bg);
+    border-radius: var(--radius);
+    background: var(--accent-bg);
+    color: #fff;
+    font-weight: 400;
+    text-decoration: none;
+    transition: background 0.15s;
 }
 
-h1 {
-    font-size: 4rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.05;
-    background: linear-gradient(120deg, var(--text) 25%, var(--accent) 50%, var(--text) 75%);
-    background-size: 600% auto;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: shimmer 24s linear infinite;
+.btn:hover {
+    background: color-mix(in srgb, var(--accent-bg) 85%, #000);
 }
 
-.tagline {
-    font-size: 1.15rem;
-    color: var(--muted);
-}
-
-.lead {
-    font-size: 1.35rem;
-    line-height: 1.55;
-    letter-spacing: -0.01em;
-    max-width: 54ch;
-    margin-top: 0.25rem;
-    color: var(--text);
-    opacity: 0.92;
-}
-
-.lead strong {
-    font-weight: 600;
-    color: var(--accent);
-}
-
-.hero .cli {
-    width: max-content;
-    max-width: 100%;
-    margin-top: 0.5rem;
-    font-size: 1.05rem;
-}
-
-/* Inline code */
-:not(pre) > code {
-    font-family: ui-monospace, monospace;
-    font-size: 0.9em;
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    padding: 0.1em 0.4em;
-    border-radius: 4px;
+/* Declared after .btn so specificity stays ascending. */
+.hero .btn {
+    font-size: var(--fs-lg);
 }
 
 /* Main layout */
+
 main {
     flex: 1;
     width: 100%;
     max-width: 1000px;
     margin: 0 auto;
-    padding: 1rem 2rem 5rem;
+    padding: var(--sp-4) var(--sp-6) calc(var(--sp-6) * 2);
     display: flex;
     flex-direction: column;
-    gap: 5rem;
+    gap: calc(var(--sp-6) * 6);
 }
 
-h2 {
-    font-size: 1.65rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+/* Home sections are centred; prose pages (below) stay left-aligned. */
+main > section > h2 {
     text-align: center;
-    margin-bottom: 1.75rem;
+    margin-bottom: var(--sp-6);
 }
 
-/* CLI command blocks */
-.copy-btn {
-    position: absolute;
-    top: 50%;
-    right: 0.75rem;
-    transform: translateY(-50%);
-    padding: 0.2rem 0.6rem;
-    font-size: 0.75rem;
-    font-family: ui-monospace, monospace;
-    background: var(--border);
-    color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    cursor: pointer;
-    transition:
-        color 0.15s,
-        background 0.15s;
-}
-
-.copy-btn:hover,
-.copy-btn.copied {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-}
+/* Command blocks */
 
 pre.cli {
+    position: relative;
     cursor: pointer;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.9em 5em 0.9em 2.5em;
-    font-family: ui-monospace, monospace;
-    font-size: 0.95rem;
-    color: var(--accent);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+
+    /* em, so the box scales with its own type rather than a fixed step. The
+       right pad clears the Copy button. */
+    padding: 0.4em 5em 0.4em 2.25em;
+    margin-bottom: var(--sp-6);
+    font-size: var(--fs-base);
+
+    /* color: var(--accent-text); */
     overflow-x: auto;
-    position: relative;
     transition:
         border-color 0.15s,
         box-shadow 0.15s;
@@ -279,16 +393,42 @@ pre.cli {
     }
 
     &:hover {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 1px var(--accent);
+        border-color: var(--accent-text);
+        box-shadow: 0 0 0 1px var(--accent-text);
     }
 }
 
-/* Demo */
+/* Injected by client.ts, so it never appears in the built markup. */
+.copy-btn {
+    position: absolute;
+    top: 50%;
+    right: var(--sp-2);
+    transform: translateY(-50%);
+    padding: 0.2rem var(--sp-2);
+    font-size: var(--fs-base);
+    background: var(--border);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition:
+        color 0.15s,
+        background 0.15s;
+}
+
+.copy-btn:hover,
+.copy-btn.copied {
+    background: var(--accent-bg);
+    color: #fff;
+    border-color: var(--accent-bg);
+}
+
+/* Code cards */
+
 .demo-grid {
     display: flex;
     align-items: stretch;
-    gap: 1.25rem;
+    gap: var(--sp-4);
 }
 
 .code-card {
@@ -298,110 +438,371 @@ pre.cli {
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
+    margin-bottom: var(--sp-6);
+
+    pre {
+        padding: var(--sp-4);
+        overflow-x: auto;
+    }
+
+    code {
+        display: block;
+        font-size: var(--fs-base);
+        line-height: 1.65;
+        color: var(--text);
+        white-space: pre;
+    }
 }
 
 .code-card-out {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    border-color: color-mix(in srgb, var(--accent-text) 45%, var(--border));
 }
 
 .code-bar {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
-    padding: 0.6rem 0.9rem;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-4);
     background: color-mix(in srgb, var(--surface-2) 60%, #000);
     border-bottom: 1px solid var(--border);
 }
 
 .dots {
     display: inline-flex;
-    gap: 0.35rem;
+    gap: var(--sp-1);
 }
 
 .dots i {
     display: block;
-    width: 0.6rem;
-    height: 0.6rem;
+    width: var(--sp-2);
+    height: var(--sp-2);
     border-radius: 50%;
     background: var(--border);
 }
 
-.code-name {
-    font-family: ui-monospace, monospace;
-    font-size: 0.8rem;
+.code-name,
+.tree-desc,
+.bar-name {
+    font-size: var(--fs-base);
     color: var(--muted);
 }
 
-.code-card pre {
-    margin: 0;
-    padding: 1rem 1.1rem;
-    overflow-x: auto;
-}
-
-.code-card code {
-    display: block;
-    font-family: ui-monospace, monospace;
-    font-size: 0.85rem;
-    line-height: 1.65;
-    color: var(--text);
-    white-space: pre;
+.code-name {
+    font-family: var(--mono);
 }
 
 .demo-arrow {
     align-self: center;
-    flex: 0 0 auto;
-    font-size: 1.6rem;
-    color: var(--accent);
+    flex: none;
+    font-size: var(--fs-lg);
+    color: var(--accent-text);
     opacity: 0.6;
 }
 
-.demo-note {
-    margin: 1.75rem auto 0;
-    max-width: 60ch;
-    text-align: center;
-    font-size: 0.95rem;
+/* Syntax highlighting, emitted by components/highlight.tsx. */
+.tok-keyword {
+    color: #c792ea;
+}
+
+.tok-type {
+    color: #82aaff;
+}
+
+.tok-property {
+    color: #7fdbca;
+}
+
+.tok-string {
+    color: #c3e88d;
+}
+
+.tok-number {
+    color: #f78c6c;
+}
+
+.tok-punct {
     color: var(--muted);
 }
 
-/* Get started */
-.cmds {
+.tok-comment {
+    color: var(--muted);
+    font-style: italic;
+}
+
+/* Feature grid */
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--sp-6);
+}
+
+.feature h3 {
+    margin-bottom: var(--sp-2);
+}
+
+.feature p {
+    font-size: var(--fs-base);
+    color: var(--muted);
+}
+
+/* Dependency chart */
+
+.chart {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
-    max-width: 26rem;
+    gap: var(--sp-2);
+    max-width: 40rem;
     margin: 0 auto;
 }
 
-.cmds pre.cli {
-    text-align: left;
+.bar-row {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 6.5rem) 1fr 3rem;
+    align-items: center;
+    gap: var(--sp-4);
 }
 
-.getting-started > p {
-    margin: 1.75rem auto 0;
-    max-width: 60ch;
-    text-align: center;
+.bar-name {
+    text-align: right;
+}
+
+.bar-track {
+    height: var(--sp-5);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--muted) 70%, transparent);
+
+    /* Skrapa's bar is under 1% of the longest and would otherwise vanish. */
+    min-width: 3px;
+}
+
+.bar-fill.is-ours {
+    background: var(--accent-bg);
+}
+
+.bar-value {
+    font-size: var(--fs-base);
+}
+
+/* Prose pages (docs, about) */
+
+.prose {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.prose h1 {
+    margin-bottom: var(--sp-4);
+}
+
+.prose h2 {
+    margin: calc(var(--sp-6) * 2) 0 var(--sp-4);
+    scroll-margin-top: calc(var(--sp-6) * 2);
+}
+
+.prose h2:first-of-type {
+    margin-top: var(--sp-6);
+}
+
+.prose p,
+.prose ul {
+    margin-bottom: var(--sp-4);
+}
+
+.prose ul {
+    margin-left: var(--sp-4);
+}
+
+.prose li + li {
+    margin-top: var(--sp-2);
+}
+
+.prose .lead {
+    max-width: none;
     color: var(--muted);
 }
 
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--sp-4) 0;
+    font-size: var(--fs-base);
+}
+
+th,
+td {
+    text-align: left;
+    padding: var(--sp-2) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+}
+
+th {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+td:first-child {
+    white-space: nowrap;
+}
+
+.back-link {
+    display: inline-block;
+    margin-top: var(--sp-6);
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: var(--accent-text);
+}
+
+/* Scaffold file tree */
+
+.tree-wrap {
+    margin: var(--sp-4) 0;
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-x: auto;
+}
+
+.tree,
+.tree-item {
+    list-style: none;
+    margin: 0;
+}
+
+/* Nested lists get an indent and a vertical guide. */
+.tree .tree {
+    margin-left: var(--sp-2);
+    padding-left: var(--sp-3);
+    border-left: 1px solid var(--border);
+}
+
+.tree-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-1) var(--sp-4);
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: 5px;
+}
+
+.tree-row:hover {
+    background: color-mix(in srgb, var(--accent-text) 8%, transparent);
+}
+
+.tree-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 0;
+}
+
+.tree-icon {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    color: var(--muted);
+    transform: translateY(0.05em);
+}
+
+.tree-name {
+    padding: 0;
+    background: none;
+    font-family: var(--mono);
+    font-size: var(--fs-base);
+    color: var(--text);
+    word-break: normal;
+}
+
+.tree-desc {
+    margin-left: auto;
+    text-align: right;
+}
+
+.tree-row.is-dir .tree-icon,
+.tree-row.is-dir .tree-name {
+    color: var(--accent-text);
+}
+
+.tree-row.is-dir .tree-name {
+    font-weight: 600;
+}
+
+/* Docs table of contents */
+
+.docs-toc {
+    position: fixed;
+    top: calc(var(--sp-6) * 2);
+    right: var(--sp-6);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-4);
+    background: var(--surface-2);
+    border-radius: var(--radius);
+
+    /* Collapsed to bars until hovered, then the labels fade up to size. */
+    /* stylelint-disable-next-line no-descending-specificity -- toc links, not nav */
+    a {
+        display: flex;
+        min-width: var(--sp-5);
+        border-bottom: 4px solid var(--border);
+        font-size: 0;
+        color: var(--muted);
+        text-decoration: none;
+        transition:
+            color 0.15s,
+            font-size 0.3s,
+            border-bottom-width 0.5s;
+    }
+
+    a:hover {
+        color: var(--accent-text);
+    }
+
+    &:hover a {
+        border-bottom-width: 1px;
+        font-size: var(--fs-base);
+    }
+}
+
 /* Footer */
+
 footer {
-    font-size: 0.85rem;
+    font-size: var(--fs-base);
     color: var(--muted);
     border-top: 1px solid var(--border);
 }
 
 .footer-inner {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
+    gap: var(--sp-2) var(--sp-4);
     max-width: 1000px;
     margin: 0 auto;
-    padding: 1.5rem 2rem;
+    padding: var(--sp-4) var(--sp-6);
 }
 
-/* stylelint-disable-next-line no-descending-specificity -- targets footer links, not nav */
+/* stylelint-disable-next-line no-descending-specificity -- footer links, not nav */
 .footer-inner a {
-    color: var(--accent);
+    color: var(--accent-text);
     text-decoration: none;
 }
 
@@ -409,56 +810,62 @@ footer {
     text-decoration: underline;
 }
 
+/* Same icon group as the nav, so the two ends of the page match. */
+.footer-icons {
+    display: flex;
+    gap: var(--sp-4);
+}
+
+/* Narrow screens
+
+   Most of the layout is fluid (auto-fit grids, clamped h1, wrapping flex), so
+   only the genuinely two-state pieces need an override. */
+
 @media (width <= 700px) {
     .nav {
-        padding: 0.75rem 1.25rem;
+        padding: var(--sp-2) var(--sp-4);
+        gap: var(--sp-2);
     }
 
-    .hero {
-        padding: 3.5rem 1.25rem 3rem;
-    }
-
-    h1 {
-        font-size: 2.9rem;
-    }
-
-    .lead {
-        font-size: 1.2rem;
+    .nav-links {
+        gap: var(--sp-4);
     }
 
     main {
-        padding: 0 1.25rem 3.5rem;
-        gap: 3.5rem;
+        padding: var(--sp-2) var(--sp-4) var(--sp-6);
+        gap: var(--sp-6);
     }
 
+    .hero {
+        padding: var(--sp-6) var(--sp-4);
+    }
+
+    .footer-inner {
+        justify-content: center;
+        text-align: center;
+        padding: var(--sp-4);
+    }
+
+    /* Cards stack, so the arrow between them should point down. In a column
+       they must size to their content: flex 1 1 0 would collapse them to zero
+       against the scrolling pre inside. */
     .demo-grid {
         flex-direction: column;
     }
 
-    /* In column layout the cards must size to their content height — flex: 1 1 0
-       would otherwise collapse them to zero against the scroll-container pre. */
     .code-card {
         flex: none;
-    }
-
-    .code-card pre {
-        padding: 0.85rem 0.95rem;
-    }
-
-    .code-card code {
-        font-size: 0.78rem;
-        line-height: 1.6;
     }
 
     .demo-arrow {
         transform: rotate(90deg);
     }
 
-    .footer-inner {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 0.5rem;
-        padding: 1.5rem 1.25rem;
+    /* The description drops to its own line under the file name. */
+    .tree-desc {
+        flex-basis: 100%;
+        margin-left: 0;
+        padding-left: var(--sp-5);
+        text-align: left;
     }
 }

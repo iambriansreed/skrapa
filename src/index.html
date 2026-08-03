@@ -6,15 +6,17 @@
         <title>Skrapa - A Simple Static Site Generator</title>
         <meta
             name="description"
-            content="Skrapa is a TypeScript JSX static site generator — live reload in dev, a single static HTML file in production. No React, no bundler."
+            content="Skrapa is a TypeScript JSX static site generator with live reload in dev and static HTML in production. One zero-dependency script, run with npx. No React, no install, no config."
         />
         <meta property="og:title" content="Skrapa" />
         <meta
             property="og:description"
-            content="TypeScript JSX templates. Static HTML output. Live reload without the overhead — no React, no bundler."
+            content="TypeScript JSX templates. Static HTML output. Live reload without the overhead. One script, nothing to install."
         />
         <link rel="icon" href="skrapa.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/style.css" />
     </head>
-    <body></body>
+    <body>
+        <script type="module" src="./client.ts"></script>
+    </body>
 </html>

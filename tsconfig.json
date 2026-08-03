@@ -1,7 +1,8 @@
 {
     "compilerOptions": {
+        "composite": true,
         "target": "ES2020",
-        "module": "CommonJS",
+        "module": "commonjs",
         "jsx": "react",
         "jsxFactory": "jsx",
         "jsxFragmentFactory": "Fragment",
@@ -11,10 +12,10 @@
         "forceConsistentCasingInFileNames": true,
         "outDir": "./.skrapa",
         "rootDir": "./",
-        "lib": ["ES2020"],
+        "lib": ["DOM", "DOM.Iterable", "ES2020"],
         "types": ["node"],
         "typeRoots": ["./node_modules/@types"]
     },
-    "include": ["**/*.ts", "**/*.tsx"],
-    "exclude": ["node_modules", "dist", "template", "bin", "build", "src/**/client.ts"]
+    "include": ["src/**/*.ts", "src/**/*.tsx", "skrapa.d.ts"],
+    "exclude": ["node_modules", "dist", "template", "bin", "build"]
 }

@@ -1,0 +1,12 @@
+# Backstop only. package.json's "files" field is the real allowlist, and npm
+# does NOT let an ignore file exclude anything inside a directory listed there:
+# with `template/` whitelisted, a stale template/.skrapa or template/dist is
+# packed regardless of the rules below (verified with `npm pack --dry-run`).
+# The `prepack` script is what actually keeps build artifacts out of the
+# tarball, and so out of every project `skrapa init` scaffolds from it.
+#
+# These rules still matter if "files" is ever narrowed or dropped.
+.skrapa
+.tmp
+dist
+*.tsbuildinfo

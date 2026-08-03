@@ -1,5 +1,5 @@
+// HTML void elements, plus self-closing SVG/MathML elements.
 const VOID_ELEMENTS = new Set([
-    // List of standard HTML void elements
     'area',
     'base',
     'br',
@@ -14,7 +14,6 @@ const VOID_ELEMENTS = new Set([
     'source',
     'track',
     'wbr',
-    // List of self-closing SVG elements
     'line',
     'circle',
     'rect',
@@ -26,7 +25,6 @@ const VOID_ELEMENTS = new Set([
     'use',
     'stop',
     'animate',
-    // List of self-closing MathML elements
     'mspace',
     'mpadded',
     'maligngroup',
@@ -96,23 +94,33 @@ const rules = {
     }),
 };
 
-const _default = {
+const plugin = {
     meta: { name: 'skrapa' },
     rules,
 };
 
 // Flat-config presets, namespaced under `configs` to match typescript-eslint
 // (e.g. `skrapa.configs.recommended`, like `tseslint.configs.recommended`).
-_default.configs = {
+plugin.configs = {
     recommended: {
-        plugins: { skrapa: _default },
+        plugins: { skrapa: plugin },
         rules: Object.fromEntries(Object.keys(rules).map((id) => [`skrapa/${id}`, 'error'])),
     },
 };
 
-_default.languageOptions = { globals: globals() };
+plugin.languageOptions = { globals: globals() };
 
-export default _default;
+const languageOptions = plugin.languageOptions;
+const configs = plugin.configs;
+
+plugin.languageOptions = languageOptions;
+plugin.configs = configs;
+
+module.exports = {
+    plugin,
+    languageOptions,
+    configs,
+};
 
 function globals() {
     return {

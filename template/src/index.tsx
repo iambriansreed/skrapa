@@ -24,7 +24,7 @@ export function Page() {
                     <a href="/about/">About Skrapa →</a>
                 </p>
                 <p class="sub">
-                    <a href="https://iambrian.com/skrapa" target="_blank" rel="noopener">
+                    <a href="https://skrapa.iambrian.com" target="_blank" rel="noopener">
                         Skrapa v{VERSION}
                     </a>{' '}
                     is made with ♥ by{' '}

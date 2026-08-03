@@ -31,8 +31,10 @@ jobs:
               uses: actions/setup-node@v6
               with:
                   node-version: '24'
+            - name: Unit tests
+              run: npm ci && npm run test:unit
             - name: Build project
-              run: npm ci && npm run build
+              run: npm run build
             - name: Upload artifact
               uses: actions/upload-pages-artifact@v5
               with:

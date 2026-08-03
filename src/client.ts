@@ -18,6 +18,9 @@ document.querySelectorAll('pre').forEach((pre) => {
         });
     };
 
-    btn.addEventListener('click', (e) => { e.stopPropagation(); doCopy(); });
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        doCopy();
+    });
     pre.addEventListener('click', doCopy);
 });

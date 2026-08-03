@@ -1,1 +1,3 @@
-console.log('/about/client.ts loaded');
+import { aboutLog } from './about';
+
+aboutLog();

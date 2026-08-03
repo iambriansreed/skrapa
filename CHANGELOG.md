@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.5.0](https://github.com/iambriansreed/skrapa/compare/v0.4.3...v0.5.0) (2026-08-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Page.clientJs is removed, replaced by Page.htmlAttrs.
+Declare client entries as <script src="./client.ts"> in the shell or page
+JSX instead of listing them on the returned object.
+* the bin entry moved from bin/skrapa.js to bin/index.js.
+* tsconfig.client.json is gone. Client code compiles
+through the project tsconfig.json, which must now include src/**/client.ts
+and the DOM lib. Existing projects need this applied by hand, since skrapa
+only manages skrapa.d.ts.
+
+### Features
+
+* enhance README and HTML metadata, update CSS styles, and refactor main page layout ([2a92710](https://github.com/iambriansreed/skrapa/commit/2a92710877aeb84e53f18484bfd44340296a32c6))
+* modular CLI, per-page shells, bundled client scripts ([cc94b94](https://github.com/iambriansreed/skrapa/commit/cc94b9411fb55cf677499f370b0c1874612efa97))
+
 ## [0.4.3](https://github.com/iambriansreed/skrapa/compare/v0.4.2...v0.4.3) (2026-06-24)
 
 ## [0.4.2](https://github.com/iambriansreed/skrapa/compare/v0.4.1...v0.4.2) (2026-06-24)

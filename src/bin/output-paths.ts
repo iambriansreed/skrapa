@@ -13,15 +13,22 @@
  * webpack's CopyPlugin refuses to overwrite an existing compilation asset
  * unless told otherwise.
  *
- * **Every path must be lowercase.** A mixed-case URL is served by a
- * case-insensitive host and 404s on a case-sensitive one, so `dist/About/`
- * works locally on macOS and breaks once deployed (or the reverse). Skrapa
- * cannot fix that by renaming: it rewrites the `src`/`href` of the tags it
- * resolves, but a page directory is reached by hand-written `<a href>`, and an
- * asset by references in CSS `url()`, JSX and client code that skrapa never
- * parses. So the build names the file and stops, and the rename happens in the
- * source tree where the links are. `skrapa page` already slugifies to
- * lowercase, so this is the existing convention made enforceable.
+ * **Every path the render writes must be lowercase.** A mixed-case URL is
+ * served by a case-insensitive host and 404s on a case-sensitive one, so
+ * `dist/About/` works locally on macOS and breaks once deployed (or the
+ * reverse). Skrapa cannot fix that by renaming: a page directory is reached by
+ * hand-written `<a href>` that skrapa never parses. So the build names the file
+ * and stops, and the rename happens in the source tree where the links are.
+ * `skrapa page` already slugifies to lowercase, so this is the existing
+ * convention made enforceable.
+ *
+ * The rule stops at what is generated from `input`. An asset is copied
+ * verbatim and its name is not skrapa's to legislate: `CNAME` has to keep its
+ * case for GitHub Pages to read it, and there is no knowing what else a host or
+ * a third-party script expects to find spelled exactly one way. Enforcing it
+ * there meant maintaining a guessed list of exceptions, so the assets tree is
+ * left alone. The collision rule above still covers the case that actually
+ * corrupts a build.
  *
  * Both rules run over the whole output tree, so one run reports everything
  * wrong with it rather than one problem per build.
@@ -243,54 +250,29 @@ export function formatProblem(problem: Problem): string {
 }
 
 /**
- * Output paths the lowercase rule does not apply to.
- *
- * A URL's case matters because a browser asks for it. These are read by the
- * host rather than fetched by a visitor, and their names are fixed by whatever
- * reads them. `CNAME` is the one that forces the issue: GitHub Pages looks for
- * exactly that name at the site root, so lowercasing it drops the custom
- * domain, and there is no renaming your way out of it. The rest are the
- * conventionally-uppercase files people drop beside it.
- *
- * Matched at the output root only (these have no `/` in them) and
- * case-sensitively, so a page directory called `License/` is still caught.
- */
-const LOWERCASE_EXEMPT = new Set([
-    'CNAME',
-    'LICENSE',
-    'LICENSE.md',
-    'LICENSE.txt',
-    'NOTICE',
-    'README.md',
-]);
-
-/**
  * The case problem with `outPath`, if it has one.
  *
  * Only the part below the output root is judged. The output dir itself is not
  * part of any URL, so a project living in `/Users/Brian/Sites/` must not fail
  * its own build.
+ *
+ * Never `assetOnly`: only the render is judged, and what it writes is wrong
+ * whatever the build was asked to do.
  * @param output - absolute output dir
  * @param outPath - the absolute path to check
  * @param source - what would write it
- * @param assetOnly - whether only the assets copy would write it
  */
-function caseProblem(
-    output: string,
-    outPath: string,
-    source: Emitted,
-    assetOnly: boolean
-): Problem | null {
+function caseProblem(output: string, outPath: string, source: Emitted): Problem | null {
     const rel = outputRelative(output, outPath);
     const lower = rel.toLowerCase();
-    if (rel === lower || LOWERCASE_EXEMPT.has(rel)) return null;
+    if (rel === lower) return null;
 
     return {
         rule: 'case',
         outPath,
         source,
         lowercased: path.join(output, ...lower.split('/')),
-        assetOnly,
+        assetOnly: false,
     };
 }
 
@@ -318,7 +300,7 @@ function walk(dir: string, rel = ''): string[] {
  */
 export function checkEmitted(emitted: EmittedPaths): Problem[] {
     return emitted.writes().flatMap((write) => {
-        const problem = caseProblem(emitted.output, write.outPath, write.emitted, false);
+        const problem = caseProblem(emitted.output, write.outPath, write.emitted);
         return problem ? [problem] : [];
     });
 }
@@ -329,6 +311,10 @@ export function checkEmitted(emitted: EmittedPaths): Problem[] {
  * Two callers, one walk: the build passes the assets dir and the output dir,
  * and `dev`'s watcher passes the single file (or directory) that just changed
  * and where it is headed.
+ *
+ * Only the collision rule applies. An asset keeps whatever case it was named
+ * with, for the reasons at the top of this file, so `assets/Logo.svg` is copied
+ * to `dist/Logo.svg` without comment.
  *
  * Assets are checked against each other as well as against the render, so
  * `assets/Chores/index.html` and `assets/chores/index.html` resolving to one
@@ -357,12 +343,6 @@ export function checkCopy(src: string, dest: string, emitted: EmittedPaths): Pro
 
         if (held) problems.push({ rule: 'collision', outPath, held, incoming, assetOnly: true });
         else seenAssets.set(outputKey(emitted.output, outPath), incoming);
-
-        // Reported alongside a collision rather than instead of it: they need
-        // different fixes, and lowercasing the name is what would *cause* the
-        // collision when both are true.
-        const cased = caseProblem(emitted.output, outPath, incoming, true);
-        if (cased) problems.push(cased);
     }
 
     return problems;

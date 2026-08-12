@@ -54,11 +54,11 @@ That's why the scaffolded about page links both. `/style.css` picks up the globa
 
 ### Output paths are lowercase
 
-Every path the build writes has to be lowercase. `src/About/` produces `dist/About/index.html`, which a case-insensitive host serves and a case-sensitive one 404s, so the same URL works on your laptop and breaks once deployed. The build names the file and the lowercase path it should have had, and stops.
+Every path built from `src/` has to be lowercase. `src/About/` produces `dist/About/index.html`, which a case-insensitive host serves and a case-sensitive one 404s, so the same URL works on your laptop and breaks once deployed. The build names the file and the lowercase path it should have had, and stops.
 
-It does not rename anything for you. Skrapa rewrites the `src`/`href` of the tags it resolves, but a page directory is reached by hand-written `<a href>` and an asset by references in CSS `url()`, JSX and client code that skrapa never parses, so renaming on the way out would just move the breakage somewhere it cannot see. The rename belongs in the source tree, next to the links. `skrapa page` already slugifies names to lowercase, so scaffolded pages satisfy this by construction.
+It does not rename anything for you. Skrapa rewrites the `src`/`href` of the tags it resolves, but a page directory is reached by hand-written `<a href>` that skrapa never parses, so renaming on the way out would just move the breakage somewhere it cannot see. The rename belongs in the source tree, next to the links. `skrapa page` already slugifies names to lowercase, so scaffolded pages satisfy this by construction.
 
-Four names at the output root are exempt, because a host reads them rather than a browser fetching them: `CNAME`, `LICENSE`, `NOTICE` and `README.md`. `CNAME` is the one that matters — GitHub Pages looks for exactly that name, so lowercasing it would drop your custom domain.
+`assets/` is not checked. Those files are copied verbatim and their names are yours: `CNAME` has to keep its case for GitHub Pages to read it, and there is no knowing what else a host or a third-party script expects to find spelled exactly one way. The collision check above still compares case-insensitively, so an asset landing on a generated path is caught whatever either one is called.
 
 ## Quick Start
 

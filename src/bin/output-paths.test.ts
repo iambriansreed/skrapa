@@ -326,52 +326,46 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
         assert.equal(problems[0].rule, 'collision');
     });
 
-    test('flags an asset whose own path is not lowercase', () => {
+    // The lowercase rule stops at the render. An asset is copied verbatim and
+    // its name is the author's, so a mixed-case one is not the build's business.
+    test('leaves an asset that is not lowercase alone', () => {
         const upper = tempDir('upper-assets-');
         try {
             fs.mkdirSync(path.join(upper, 'public', 'Icons'), { recursive: true });
             fs.writeFileSync(path.join(upper, 'public', 'Icons', 'Logo.SVG'), '<svg />');
 
             const dist = path.join(upper, 'dist');
-            const problems = checkCopy(path.join(upper, 'public'), dist, emittedPaths(dist));
 
-            assert.equal(problems.length, 1);
-            assert.equal(problems[0].rule, 'case');
-            assert.equal(problems[0].assetOnly, true);
-            assert.match(formatProblem(problems[0]), /should be {7}.*icons\/logo\.svg/);
+            assert.deepEqual(checkCopy(path.join(upper, 'public'), dist, emittedPaths(dist)), []);
         } finally {
             fs.rmSync(upper, { recursive: true, force: true });
         }
     });
 
-    // GitHub Pages reads `CNAME` at the site root by that exact name, so
-    // lowercasing it drops the custom domain. It is read by the host, not
-    // fetched by a browser, so the rule the lowercase check enforces does not
-    // apply to it in the first place.
-    test('exempts the host files that cannot be lowercased', () => {
+    // The files that forced the old exemption list. GitHub Pages reads `CNAME`
+    // at the site root by that exact name, so lowercasing it drops the custom
+    // domain. Nothing special about them now: no asset is case-checked, nested
+    // or not, so there is no list to keep in step with what hosts expect.
+    test('says nothing about host files like CNAME, at any depth', () => {
         const exempt = tempDir('exempt-');
         try {
             fs.mkdirSync(path.join(exempt, 'public', 'blog'), { recursive: true });
             fs.writeFileSync(path.join(exempt, 'public', 'CNAME'), 'skrapa.example\n');
             fs.writeFileSync(path.join(exempt, 'public', 'LICENSE'), 'MIT\n');
-            // Only at the output root: nested, the name is just a path segment.
             fs.writeFileSync(path.join(exempt, 'public', 'blog', 'CNAME'), 'nope\n');
 
             const dist = path.join(exempt, 'dist');
-            const problems = checkCopy(path.join(exempt, 'public'), dist, emittedPaths(dist));
 
-            assert.deepEqual(
-                problems.map((problem) => path.relative(dist, problem.outPath)),
-                [path.join('blog', 'CNAME')]
-            );
+            assert.deepEqual(checkCopy(path.join(exempt, 'public'), dist, emittedPaths(dist)), []);
         } finally {
             fs.rmSync(exempt, { recursive: true, force: true });
         }
     });
 
-    // The exemption is a list of exact names, not a general amnesty for
-    // uppercase: a page directory that merely resembles one is still caught.
-    test('does not exempt a path that only resembles an exempt name', () => {
+    // Dropping the rule for assets is not a general amnesty for uppercase: a
+    // page directory named like one of those host files is still caught,
+    // because the render is still judged.
+    test('still flags a generated page named like a host file', () => {
         const emitted = emittedPaths(OUTPUT);
         emitted.record(path.join(OUTPUT, 'License/index.html'), page('License'));
 
@@ -396,15 +390,14 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
             const problems = checkCopy(twoCase, dist, emittedPaths(dist));
 
             // One collision, not two: the first asset seen holds the path and
-            // the second is the one refused. Plus the uppercase one's own case
-            // problem, which is a separate fix (lowercasing it is what would
-            // *cause* the collision).
+            // the second is the one refused. And nothing else, since the
+            // uppercase asset's own case is no longer the build's business.
             const collisions = problems.filter((problem) => problem.rule === 'collision');
             assert.equal(collisions.length, 1);
             assert.equal(collisions[0].rule === 'collision' && collisions[0].held.kind, 'asset');
             assert.match(formatProblem(collisions[0]), /Asset would overwrite another asset:/);
 
-            assert.equal(problems.filter((problem) => problem.rule === 'case').length, 1);
+            assert.equal(problems.length, 1);
         } finally {
             fs.rmSync(twoCase, { recursive: true, force: true });
         }
@@ -538,8 +531,8 @@ describe('src/bin/output-paths.test.ts - skrapa build, mixed-case output paths',
         const write = scaffold(fixture);
 
         write('src/About/index.tsx', 'export const Page = (): Skrapa.Page => <h1>about</h1>;\n');
+        // Mixed-case, but an asset, so it is copied as named and never reported.
         write('public/Logo.svg', '<svg />');
-        // Lowercase, so the run proves it flags only what is wrong.
         write('public/favicon.ico', '');
 
         result = runBuild(fixture);
@@ -562,10 +555,20 @@ describe('src/bin/output-paths.test.ts - skrapa build, mixed-case output paths',
         }
     });
 
-    test('reports the mixed-case asset in the same run', () => {
-        for (const named of ['public/Logo.svg', 'dist/Logo.svg', 'dist/logo.svg']) {
-            assert.ok(result.output.includes(named), `expected the message to name ${named}`);
-        }
+    // The page and the asset are both mixed-case, and only the page is the
+    // build's business. Asserted through a real build because this is the split
+    // the rule is about.
+    test('says nothing about the mixed-case asset', () => {
+        const complaints = result.output.match(/Output path is not lowercase:/g) ?? [];
+        assert.equal(
+            complaints.length,
+            1,
+            `expected only the generated page to be reported\n${result.output}`
+        );
+        assert.ok(
+            !result.output.includes('public/Logo.svg'),
+            'an asset keeps whatever case it was named with'
+        );
     });
 
     test('says nothing about the paths that are already lowercase', () => {

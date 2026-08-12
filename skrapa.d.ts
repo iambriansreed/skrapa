@@ -127,12 +127,12 @@ declare global {
              * In dev mode this directory is served, and watched so a change
              * triggers a reload.
              *
-             * Every path written under here must be lowercase, since a
+             * Every path generated from `input` must be lowercase, since a
              * mixed-case URL is served by a case-insensitive host and 404s on
              * a case-sensitive one. The build names the file and stops rather
              * than renaming it, because the links to it live in your source.
-             * `CNAME`, `LICENSE`, `NOTICE` and `README.md` at the root are
-             * exempt: a host reads those, a browser never fetches them.
+             * Files copied from `assets` are exempt: they keep whatever case
+             * you named them with, so `CNAME` still reaches your host intact.
              * @default "dist"
              */
             output?: string;

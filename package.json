@@ -30,8 +30,8 @@
         "lint:fix": "npm run lint -- --fix",
         "lint:css": "npx stylelint \"assets/**/*.css\" \"src/**/*.css\" \"template/**/*.css\"",
         "clean": "rm -rf dist bin .tmp .skrapa template/dist template/.skrapa",
-        "prepack": "rm -rf template/.skrapa template/dist",
-        "release": "npm run build && commit-and-tag-version && git push --follow-tags && npm login && npm publish"
+        "prepack": "npm run build && rm -rf template/.skrapa template/dist",
+        "release": "commit-and-tag-version && npm run build && git push --follow-tags && npm login && npm publish"
     },
     "files": [
         "bin/",

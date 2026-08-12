@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.6.0](https://github.com/iambriansreed/skrapa/compare/v0.5.0...v0.6.0) (2026-08-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* skrapa.config.json is no longer read. Page, Props,
+PropsWithChildren, Tag and CSSProperties are now Skrapa.* (CSSProperties
+becomes Skrapa.CSSProps). htmlAttrs is now shellAttrs.html. Run
+`npx skrapa fix`.
+
+### Features
+
+* TypeScript config, Skrapa-namespaced types, output-path checks ([bf600e8](https://github.com/iambriansreed/skrapa/commit/bf600e804210118efd72ddbf08c29d6e614e4d1d))
+
 ## [0.5.0](https://github.com/iambriansreed/skrapa/compare/v0.4.3...v0.5.0) (2026-08-03)
 
 

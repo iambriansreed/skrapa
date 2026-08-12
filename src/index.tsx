@@ -1,6 +1,6 @@
 import { Logo } from './components/logo';
 import { TopNav } from './components/top-nav';
-import { CodeCard, esc } from './components/code-card';
+import { CodeCard } from './components/code-card';
 import { Footer } from './components/footer';
 
 // Deliberately line-for-line parallel with OUTPUT: each row sits at the same
@@ -42,7 +42,7 @@ const DEPS = [
 
 const DEPS_MAX = Math.max(...DEPS.map((d) => d.count));
 
-export function Page(): Page {
+export function Page(): Skrapa.Page {
     return (
         <>
             <TopNav />
@@ -73,7 +73,7 @@ export function Page(): Page {
                         {PILLARS.map((p) => (
                             <div class="feature">
                                 <h3>{p.name}</h3>
-                                <p>{esc(p.body)}</p>
+                                <p>{p.body}</p>
                             </div>
                         ))}
                     </div>
@@ -102,7 +102,7 @@ export function Page(): Page {
                         Measured with <code>npm install --dry-run</code> in an empty project, August
                         2026. Skrapa's one is <code>typescript</code>, the only install{' '}
                         <code>skrapa init</code> adds. Skrapa itself runs from <code>npx</code> and
-                        is never installed at all. Requires <code>Node ^24</code>.
+                        is never installed at all. Requires <code>Node &gt;=24</code>.
                     </p>
                 </section>
 

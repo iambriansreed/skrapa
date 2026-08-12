@@ -4,46 +4,88 @@
  * Builds once, then serves the output dir over HTTP: a WebSocket pushes a
  * reload on every rebuild. Watches the input dir (rebuilds via a `skrapa build`
  * subprocess) and the assets dir (copies changed files through on the fly).
- * @param overrideConfig - {@link ConfigOverrides} applied on top of
- *   `skrapa.config.json` and the CLI flags below (build flags also accepted):
+ * @param overrideConfig - {@link Skrapa.Config} applied on top of
+ *   `skrapa.config.ts` and the CLI flags below (build flags also accepted):
  *   - `--port <n>`       dev server port (default `"8080"`)
- *   - `--host <host>`    dev server host (default `"localhost"`)
+ *   - `--host <host>`    interface to bind to (default `"localhost"`)
+ *   - `--origin <url>`   public URL when behind a proxy (default: host:port)
  *   - `-v`, `--verbose`  log every HTTP request
  */
 
 import { exec } from 'node:child_process';
 import path from 'node:path';
 import { build } from './cmd-build';
+import { checkCopy, formatProblem, readManifest } from './output-paths';
 import { color, log } from './utils';
 import type { Socket } from 'node:net';
 import fs from 'node:fs';
 import http from 'node:http';
 import crypto from 'node:crypto';
 
+/** The config keys a rebuild reads. port/host/origin belong to the server. */
+const BUILD_KEYS = ['root', 'input', 'output', 'assets', 'base'] as const;
+
+/**
+ * The flags to hand the `skrapa build` subprocess each rebuild runs.
+ *
+ * Every rebuild is a fresh process that resolves its own config from scratch,
+ * so whatever this dev server resolved has to be passed explicitly. Without it
+ * `skrapa dev --root site` serves site/ but rebuilds whatever happens to be in
+ * the current directory on every save, or fails outright when there is no
+ * project there; `--base`, `--input` and `--output` are dropped the same way.
+ *
+ * Resolved values are sent rather than the raw argv, so a setting that came
+ * from skrapa.config.ts or from a programmatic override survives too, not only
+ * one that was typed as a flag.
+ * @param config - the fully resolved config this dev server is serving
+ * @returns a leading-space-prefixed flag string, safe to append to a command
+ */
+export function rebuildFlags(config: ResolvedConfig): string {
+    return BUILD_KEYS.map((key) => ` --${key} ${JSON.stringify(String(config[key]))}`).join('');
+}
+
 // ============================================================================
-export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
+export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
     log.info('\nDev mode starting...\n');
 
     const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
 
     // Initial build
-    const { directory, config } = build(overrideConfig);
+    const { directory, config, WORKING_DIR } = build(overrideConfig);
+
+    // The URL to point a browser at, which is not always where we bind: with a
+    // proxy or tunnel in front (`origin`), the site is reached somewhere else,
+    // often on the default port and so with no port in the URL at all. The
+    // origin arrives from loadConfig already carrying a scheme and no trailing
+    // slash, so there is nothing left to normalize here.
+    const publicUrl = config.origin || `http://${config.host}:${config.port}`;
 
     const MIME_TYPES: Record<string, string> = {
         '.html': 'text/html',
         '.js': 'text/javascript',
+        '.mjs': 'text/javascript',
         '.css': 'text/css',
         '.json': 'application/json',
+        '.map': 'application/json',
+        '.txt': 'text/plain',
+        '.xml': 'application/xml',
         '.png': 'image/png',
-        '.jpg': 'image/jpg',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
         '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.avif': 'image/avif',
+        '.ico': 'image/x-icon',
         '.svg': 'image/svg+xml',
         '.wav': 'audio/wav',
+        '.mp3': 'audio/mpeg',
         '.mp4': 'video/mp4',
-        '.woff': 'application/font-woff',
-        '.ttf': 'application/font-ttf',
+        '.webm': 'video/webm',
+        '.woff': 'font/woff',
+        '.woff2': 'font/woff2',
+        '.ttf': 'font/ttf',
         '.eot': 'application/vnd.ms-fontobject',
-        '.otf': 'application/font-otf',
+        '.otf': 'font/otf',
         '.wasm': 'application/wasm',
     };
 
@@ -75,7 +117,6 @@ export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
     }
 
     const server = http.createServer((req, res) => {
-        server.setMaxListeners(0);
         if (verbose) log.info(`${req.method} ${req.url}`);
         // Resolve clean URLs to their index.html: "/" and "/about/" -> .../index.html,
         // and extension-less paths like "/about" -> "/about/index.html".
@@ -167,7 +208,11 @@ export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
                 }
 
                 function connect() {
-                  const ws = new WebSocket('ws://' + location.host + '/hmr');
+                  // Match the page's scheme: a browser blocks an insecure
+                  // socket opened from an https page as mixed content, so a
+                  // dev server behind a TLS proxy or tunnel needs wss.
+                  const scheme = location.protocol === 'https:' ? 'wss://' : 'ws://';
+                  const ws = new WebSocket(scheme + location.host + '/hmr');
                   ws.onopen = () => {
                     if (reconnecting) {
                       clearTimeout(toastTimer);
@@ -202,6 +247,10 @@ export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
         });
     });
 
+    // Uncapped once, not per request: every HMR client holds a socket and
+    // each adds listeners, so the default cap of 10 would warn spuriously.
+    server.setMaxListeners(0);
+
     server.on('upgrade', (req, socket: Socket) => {
         // log.gray(`WS upgrade: ${req.url}`);
         if (req.url !== '/hmr') {
@@ -227,9 +276,7 @@ export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
         // log.gray(`WS connected (${clients.size} total)`);
         socket.on('close', () => {
             clients.delete(socket);
-            log.gray(
-                `WS closed (${clients.size} remaining). Reopen http://${config.host}:${config.port}`
-            );
+            log.gray(`WS closed (${clients.size} remaining). Reopen ${publicUrl}`);
         });
         socket.on('error', (err) => {
             clients.delete(socket);
@@ -239,26 +286,59 @@ export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
 
     let buildTimer: NodeJS.Timeout | null = null;
 
+    // `npm run --if-present` tolerates a missing *script*, but still errors
+    // when there is no package.json at all, and that error would fail every
+    // rebuild in a directory that was never `skrapa init`-ed. Decide once.
+    const postbuild = fs.existsSync(path.join(config.root, 'package.json'))
+        ? ' && npm run --if-present postbuild-skrapa'
+        : '';
+
+    // Re-run the very binary this process started from, not `npx skrapa`:
+    // same guaranteed version, and it shaves npx's package resolution
+    // (~170ms of a ~590ms rebuild, measured) off every save.
+    const q = (s: string) => JSON.stringify(s);
+    const selfInvoke = process.argv[1]
+        ? `${q(process.execPath)} ${q(process.argv[1])}`
+        : 'npx skrapa';
+
+    const buildFlags = rebuildFlags(config);
+
     const triggerBuild = () => {
         if (buildTimer) clearTimeout(buildTimer);
         buildTimer = setTimeout(() => {
-            exec(
-                `npx skrapa build skip-assets pretty && npm run --if-present postbuild-skrapa`,
-                (error) => {
-                    if (error) {
-                        log.error(`Build failed: ${error.message}`);
-                        return;
-                    }
-                    log.success(
-                        `${color.reset}[${new Date().toLocaleTimeString()}]${
-                            color.green
-                        } Build complete → reloading (${clients.size} client${
-                            clients.size === 1 ? '' : 's'
-                        })`
-                    );
-                    broadcast('reload');
+            // cwd is the project root, not wherever dev was started, so the
+            // `postbuild-skrapa` script runs against the project's own
+            // package.json (the one checked just above).
+            const options = { cwd: config.root };
+            const command = `${selfInvoke} build skip-assets pretty${buildFlags}${postbuild}`;
+            exec(command, options, (error, stdout, stderr) => {
+                if (error) {
+                    // tsc reports its diagnostics on *stdout*, and exec's
+                    // error.message carries only the command and stderr.
+                    // Without printing stdout, a type error introduced
+                    // mid-session shows as a bare "Build failed" with the
+                    // actual errors swallowed.
+                    log.error(`Build failed:`);
+                    if (stdout.trim()) console.log(stdout.trim());
+                    if (stderr.trim()) console.error(stderr.trim());
+                    return;
                 }
-            );
+                // A successful rebuild stays quiet except for its
+                // warnings, which would otherwise be invisible until the
+                // next manual `skrapa build`: log.warn writes to stdout
+                // in yellow, so warn lines are the yellow ones.
+                for (const line of stdout.split('\n')) {
+                    if (line.includes(color.yellow)) console.log(line);
+                }
+                log.success(
+                    `${color.reset}[${new Date().toLocaleTimeString()}]${
+                        color.green
+                    } Build complete → reloading (${clients.size} client${
+                        clients.size === 1 ? '' : 's'
+                    })`
+                );
+                broadcast('reload');
+            });
         }, 100);
     };
 
@@ -282,7 +362,28 @@ export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
             // in the output dir for good, where it ships with the site.
             const isEditorTempFile = /(^|[/\\])\.#|\.tmp(\.[\w-]+)*$|~$|\.swp$/i.test(filename);
             if (isEditorTempFile || !fs.existsSync(src)) return;
+
             try {
+                // This copy breaks the output-tree rules exactly the way the
+                // assets copy in a full build does (see output-paths.ts), so
+                // it gets the same check. The manifest is re-read per event
+                // rather than captured once: rebuilds run in their own
+                // process, and a page added mid-session would otherwise never
+                // be known about here. A build refuses outright; here the
+                // server is already up and serving, so say so loudly and leave
+                // the output as it is.
+                //
+                // Inside the try with the copy because the check reads the
+                // file too, and the same save-by-rename that the guard above
+                // catches most of the time can still land between the two.
+                const problems = checkCopy(src, dest, readManifest(WORKING_DIR, directory.output));
+                if (problems.length > 0) {
+                    for (const line of problems.map(formatProblem).join('\n\n').split('\n'))
+                        log.error(line);
+                    log.error('Not copied. The build will fail on this until it is fixed.');
+                    return;
+                }
+
                 fs.mkdirSync(path.dirname(dest), { recursive: true });
                 fs.cpSync(src, dest, { recursive: true });
             } catch (err) {
@@ -307,12 +408,15 @@ export async function dev(overrideConfig?: ConfigOverrides): Promise<void> {
         process.exit(1);
     });
 
-    server.listen(Number(config.port), config.host, () => {
+    server.listen(config.port, config.host, () => {
         log.success(
-            `\n⚡ ${color.cyan}http://${config.host}:${config.port}${color.reset}  ${color.gray}ctrl+C to stop${color.reset}\n`
+            `\n⚡ ${color.cyan}${publicUrl}${color.reset}  ${color.gray}ctrl+C to stop${color.reset}\n`
         );
+        // With a proxy in front, the bind address is not where the site is
+        // reached, so name both rather than leaving a silent mismatch.
+        if (config.origin) log.gray(`   serving on http://${config.host}:${config.port}\n`);
         setTimeout(() => {
-            // if (clients.size === 0) exe(`open http://${config.host}:${config.port}`);
+            // if (clients.size === 0) exe(`open ${publicUrl}`);
         }, 1500);
     });
 

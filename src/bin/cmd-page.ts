@@ -9,7 +9,7 @@
  * Positional args:
  * - `<name>`   (required) pretty name, e.g. `"About Us"`
  * - `[parent]` (optional) parent route to nest under, e.g. `"blog"`
- * @param overrideConfig - {@link ConfigOverrides}; `page` reads `input` and the
+ * @param overrideConfig - {@link Skrapa.Config}; `page` reads `input` and the
  *   resolved `root` from it, so `--input` / `--root` and a programmatic override
  *   all work the same as the other commands.
  */
@@ -61,13 +61,23 @@ export function planPage(opts: {
 
     // Normalize an optional parent route (strip surrounding slashes) so nesting
     // like `skrapa page "First Post" blog` lands at <input>/blog/first-post.
-    const parent = (opts.parent ?? '').replace(/^\/+|\/+$/g, '');
+    const parent = path.posix.normalize((opts.parent ?? '').replace(/^\/+|\/+$/g, ''));
+
+    // After normalizing, a parent that still climbs (`..`, `a/../../b`) would
+    // scaffold outside the input dir: files land in a surprising place and the
+    // page never builds, since the build only scans the input tree. Refuse it
+    // rather than write somewhere the user did not mean.
+    if (parent === '..' || parent.startsWith('../')) {
+        throw new Error(
+            `parent "${opts.parent}" points outside the input directory; pages must live under ${input}/.`
+        );
+    }
     const route = path.posix.join(input, parent, slug);
     const urlPath = `/${path.posix.join(parent, slug)}/`;
     const dir = path.join(root, input, parent, slug);
 
     const files: Record<string, string> = {
-        'index.tsx': `export function Page(): Page {
+        'index.tsx': `export function Page(): Skrapa.Page {
     return (
         <main class="${slug}">
             <h1>${name}</h1>
@@ -113,7 +123,7 @@ console.log('${slug} page loaded');
  *
  * @param overrideConfig
  */
-export function page(overrideConfig?: ConfigOverrides): void {
+export function page(overrideConfig?: Skrapa.Config): void {
     // Positional name + optional parent, tolerant of shared config flags
     // appearing in any order (e.g. `page "About" --root site`).
     const [name, parent] = positionalArgs();

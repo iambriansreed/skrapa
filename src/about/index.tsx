@@ -1,7 +1,7 @@
 import { TopNav } from '../components/top-nav';
 import { Footer } from '../components/footer';
 
-export function Page(): Page {
+export function Page(): Skrapa.Page {
     return (
         <>
             <TopNav />

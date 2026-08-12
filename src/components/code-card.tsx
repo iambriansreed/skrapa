@@ -20,9 +20,7 @@ export function CodeCard(props: {
                 <span class="code-name">{props.name}</span>
             </figcaption>
             <pre>
-                <code data-no-copy>
-                    {props.highlight ? highlight(props.code) : esc(props.code)}
-                </code>
+                <code data-no-copy>{props.highlight ? highlight(props.code) : props.code}</code>
             </pre>
         </figure>
     );

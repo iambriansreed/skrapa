@@ -29,10 +29,6 @@ html {
     font-weight: 300;
 }
 
-html.docs-page {
-    font-size: 16px;
-}
-
 img,
 picture,
 video,
@@ -83,11 +79,15 @@ select {
     --sp-5: 1.5rem;
     --sp-6: 2rem;
 
-    /* --fs-base is the floor: nothing on the site renders smaller than it.
-       It is 1rem, which html pins to 18px above, so that is the floor.
-       Every other size is a multiple of the base, so changing either the
-       base or the root rescales the page: 1 / 1.125 / 1.5, then two fluid
-       steps. */
+    /* --fs-base is body text and the anchor the rest of the scale is written
+       against: 1rem, which html pins to 18px above. Every other step is a
+       multiple of it, so changing either the base or the root rescales the
+       whole page: 0.8 / 1 / 1.125 / 1.5, then two fluid steps.
+
+       --fs-xs is the one step below the base, and the floor. It is for labels
+       that name something else on the page (a column header, a caption), never
+       for prose: anything meant to be read sits at --fs-base or above. */
+    --fs-xs: calc(var(--fs-base) * 0.8);
     --fs-base: 1rem;
     --fs-md: calc(var(--fs-base) * 1.125);
     --fs-lg: calc(var(--fs-base) * 1.5);
@@ -375,7 +375,7 @@ pre.cli {
 
     /* em, so the box scales with its own type rather than a fixed step. The
        right pad clears the Copy button. */
-    padding: 0.4em 5em 0.4em 2.25em;
+    padding: 0.5em 5em 0.5em 2.25em;
     margin-bottom: var(--sp-6);
     font-size: var(--fs-base);
 
@@ -398,14 +398,16 @@ pre.cli {
     }
 }
 
-/* Injected by client.ts, so it never appears in the built markup. */
+/* Injected by client.ts, so it never appears in the built markup. Sized at
+   --fs-xs: it labels the block it sits on rather than being read alongside it,
+   and the smaller chip leaves more of the command visible underneath. */
 .copy-btn {
     position: absolute;
     top: 50%;
     right: var(--sp-2);
     transform: translateY(-50%);
     padding: 0.2rem var(--sp-2);
-    font-size: var(--fs-base);
+    font-size: var(--fs-xs);
     background: var(--border);
     color: var(--text);
     border: 1px solid var(--border);
@@ -429,6 +431,7 @@ pre.cli {
     display: flex;
     align-items: stretch;
     gap: var(--sp-4);
+    margin-bottom: var(--sp-6);
 }
 
 .code-card {
@@ -452,6 +455,12 @@ pre.cli {
         color: var(--text);
         white-space: pre;
     }
+}
+
+/* Declared after .code-card so specificity stays ascending; the grid supplies
+   the gap between cards, so the card's own bottom margin would double it. */
+.demo-grid .code-card {
+    margin-bottom: 0;
 }
 
 .code-card-out {
@@ -631,28 +640,104 @@ pre.cli {
     color: var(--muted);
 }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
+/* Tables (see components/data-table.tsx)
+
+   Divs carrying ARIA roles, not <table>, so a row can drop from three aligned
+   columns to a stacked card without overriding table layout. The roles are the
+   selectors on purpose: styling and semantics stay welded together, and a
+   missing role shows up as a broken row rather than as silence in a screen
+   reader. */
+
+[role='table'] {
+    display: grid;
     margin: var(--sp-4) 0;
     font-size: var(--fs-base);
-}
 
-th,
-td {
-    text-align: left;
-    padding: var(--sp-2) var(--sp-4);
-    border-bottom: 1px solid var(--border);
-}
+    [role='row'] {
+        display: grid;
 
-th {
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
+        /* Column one sizes to the longest command but is allowed to wrap; the
+       description takes the slack. A fixed or nowrap first column is what made
+       the old <table> overflow the page on a phone. */
+        grid-template-columns: minmax(min-content, 14rem) minmax(0, 1fr) minmax(min-content, 12rem);
+        gap: var(--sp-2) var(--sp-4);
+        align-items: baseline;
+        padding: var(--sp-2) var(--sp-4);
+        border-bottom: 1px solid var(--border);
+    }
 
-td:first-child {
-    white-space: nowrap;
+    [role='columnheader'] {
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    /* The per-cell label, shown only once the headers are off screen (below). */
+    [role='cell'] > [aria-hidden='true']:first-child {
+        display: none;
+    }
+
+    /* Nested rather than a sibling @media block, and not by preference: these
+       selectors have to carry the same `[role='table'] …` prefix as the ones
+       above to outrank them. A media query adds no specificity of its own, so
+       an unnested `[role='row']` (0,1,0) loses to the nested one (0,2,0) and
+       the narrow layout never applies at any width. */
+    @media (width <= 700px) {
+        /* One column: every cell stacks and can use the full width. */
+        [role='row'] {
+            grid-template-columns: 1fr;
+            gap: var(--sp-1);
+            padding: var(--sp-4) var(--sp-2);
+        }
+
+        /* The header row has nothing to align to once rows stack, so it goes
+           off screen visually. Not display:none: it still names every cell for
+           a screen reader. */
+        [role='row']:has([role='columnheader']) {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            border: 0;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+
+        /* Label left, value right. Both are flex items at their natural size,
+           so a short value (`npx skrapa init`) sits beside its label, while one
+           too wide to share the line wraps whole onto the next and takes the
+           full width. That crossover is flex-wrap's own doing: no width guess,
+           and no second breakpoint to maintain. */
+        [role='cell'] {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: var(--sp-1) var(--sp-4);
+        }
+
+        [role='cell'] > [aria-hidden='true']:first-child {
+            /* Fixed width so the labels form a column; never shrinks, so a
+               long value pushes itself onto the next line rather than crushing
+               it. */
+            display: block;
+            flex: none;
+            width: 6.5rem;
+            color: var(--muted);
+            font-size: var(--fs-xs);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* The value sits hard right while it shares the line with its label,
+           and the auto margin simply has nothing left to take up once the value
+           has wrapped onto a line of its own. It stays at its natural width
+           rather than growing, so that natural width is what decides which of
+           the two happens. */
+        [role='cell'] > :not([aria-hidden='true']) {
+            margin-left: auto;
+        }
+    }
 }
 
 .back-link {
@@ -831,9 +916,21 @@ footer {
         gap: var(--sp-4);
     }
 
+    .docs-toc {
+        right: var(--sp-1);
+
+        &:not(:hover) {
+            /* Only the first three links stay; the rest are dropped from the
+               layout until a hover brings them back. */
+            a:nth-child(n + 4) {
+                display: none;
+            }
+        }
+    }
+
     main {
         padding: var(--sp-2) var(--sp-4) var(--sp-6);
-        gap: var(--sp-6);
+        gap: calc(var(--sp-6) * 4);
     }
 
     .hero {

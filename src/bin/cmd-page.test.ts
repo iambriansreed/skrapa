@@ -50,4 +50,24 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
     test('planPage throws when the name has no usable characters', () => {
         assert.throws(() => planPage({ name: '@#$', root: '/proj' }), /no letters or numbers/);
     });
+
+    // A parent that climbs out of the input dir would scaffold files in a
+    // surprising place, and the page would never build (the build only scans
+    // the input tree). Interior `..` that stays inside is fine once
+    // normalized; only a net climb is refused.
+    test('planPage refuses a parent that escapes the input dir', () => {
+        for (const parent of ['..', '../outside', 'a/../../b', 'a/b/../../../c']) {
+            assert.throws(
+                () => planPage({ name: 'Post', parent, root: '/proj' }),
+                /outside the input directory/,
+                `parent ${JSON.stringify(parent)} should throw`
+            );
+        }
+    });
+
+    test('planPage allows interior ".." that stays inside the input dir', () => {
+        const plan = planPage({ name: 'Post', parent: 'a/../blog', root: '/proj' });
+        assert.equal(plan.route, 'src/blog/post');
+        assert.equal(plan.dir, path.join('/proj', 'src', 'blog', 'post'));
+    });
 });

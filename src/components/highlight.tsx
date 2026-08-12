@@ -40,10 +40,14 @@ const isIdent = (c: string) => /[A-Za-z0-9_$]/.test(c);
 
 /**
  * Tokenize a small TypeScript snippet into class-tagged spans for highlighting.
- * Emits raw HTML (the jsx runtime passes string children through unescaped),
- * with all literal source text escaped. Pair with the `.tok-*` CSS classes.
+ * Pair with the `.tok-*` CSS classes.
+ *
+ * The markup is assembled as a string rather than as JSX, so it comes back
+ * through `raw()`: returning a plain string would render the spans as visible
+ * text now that string children are escaped. Every piece of literal source text
+ * is escaped on the way in, which is what makes that `raw()` safe.
  */
-export function highlight(code: string): string {
+export function highlight(code: string): JSX.Element {
     let out = '';
     let i = 0;
     const n = code.length;
@@ -125,5 +129,5 @@ export function highlight(code: string): string {
         i += 1;
     }
 
-    return out;
+    return raw(out);
 }

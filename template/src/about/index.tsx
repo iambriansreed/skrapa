@@ -1,4 +1,4 @@
-export function Page(): Page {
+export function Page(): Skrapa.Page {
     return (
         <>
             <a

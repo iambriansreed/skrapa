@@ -9,17 +9,17 @@
  * CLI flags:
  * - `-f`, `--force`  overwrite existing files with the scaffolded versions
  * - `--no-dev`       skip starting the dev server after scaffolding
- * @param overrideConfig - {@link ConfigOverrides}; `init` uses the resolved
+ * @param overrideConfig - {@link Skrapa.Config}; `init` uses the resolved
  *   `root` (honoring `--root`) as the directory to scaffold into.
  */
 
 import path from 'node:path';
-import { color, exe, log } from './utils';
+import { color, exe, log, versionBanner } from './utils';
 import { loadConfig } from './config';
 import fs from 'node:fs';
 
-export async function init(overrideConfig?: ConfigOverrides): Promise<void> {
-    console.log(`\n${color.cyan}Skrapa${color.reset} ${color.gray}v${VERSION}${color.reset}`);
+export async function init(overrideConfig?: Skrapa.Config): Promise<void> {
+    console.log(`\n${versionBanner()}`);
 
     log.gray('Initializing...\n');
 

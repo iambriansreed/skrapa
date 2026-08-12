@@ -1,6 +1,6 @@
 import { Button } from './components/button';
 
-export function Page() {
+export function Page(): Skrapa.Page {
     return (
         <>
             <a

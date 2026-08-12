@@ -6,7 +6,7 @@ A minimal static site built with [Skrapa](https://skrapa.iambrian.com): native T
 
 ```
 src/index.html            # shared HTML shell (head + body)
-src/index.tsx             # home page, Page() returns the body HTML
+src/index.tsx             # home page, Page() returns the body JSX
 src/about/index.html      # per-page shell overriding the shared one for /about
 src/about/index.tsx       # /about page (a nested dir becomes a nested route)
 src/about/client.ts       # browser JS scoped to /about
@@ -14,7 +14,7 @@ src/about/style.css       # per-page styles, linked from the about shell
 src/components/button.tsx # example component (imported, never routed)
 src/client.ts             # browser JS, compiled and linked via <script src>
 assets/                   # copied as-is to dist/ (CSS, images, fonts)
-skrapa.config.json        # build + dev-server settings
+skrapa.config.ts         # build + dev-server settings
 tsconfig.json             # TypeScript config
 ```
 

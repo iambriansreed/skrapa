@@ -41,7 +41,7 @@ export const VOID_ELEMENTS = new Set([
     'malignmark',
 ]);
 
-export function styleToCss(style: CSSProperties | undefined): string {
+export function styleToCss(style: Skrapa.CSSProps | undefined): string {
     if (!style) return '';
     return Object.entries(style)
         .map(([key, value]) => {
@@ -62,10 +62,59 @@ export function escapeAttr(value: string): string {
     return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+// Escape a value destined for text content. `<` is the critical one; `>` is
+// escaped as well so a stray `]]>` or a literal `-->` cannot terminate a
+// construct, and `&` first so the escapes themselves are not re-escaped.
+export function escapeText(value: string): string {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * A rendered element: HTML that is finished and must not be escaped again.
+ *
+ * Elements are boxed rather than left as plain strings so that {@link jsx} can
+ * tell markup it produced from text a caller passed in. Without that
+ * distinction, escaping string children would also escape every nested element,
+ * since both arrive as a string.
+ */
+class RawHtml {
+    /** Matches the phantom brand on JSX.Element. */
+    readonly __jsx = 'element' as const;
+    constructor(private readonly html: string) {}
+    toString(): string {
+        return this.html;
+    }
+}
+
+/**
+ * Mark a string as finished HTML, exempting it from escaping. The public
+ * `raw()` global (see skrapa.d.ts) and every element {@link jsx} returns.
+ * @param html - markup emitted verbatim; never build this from untrusted input
+ */
+export function raw(html: string): JSX.Element {
+    return new RawHtml(html) as unknown as JSX.Element;
+}
+
+/** Whether a value is a rendered element rather than text. */
+export function isElement(value: unknown): value is JSX.Element {
+    return value instanceof RawHtml;
+}
+
+// The inverse of escapeAttr, for reading a value back out of existing markup.
+// A page's `shellAttrs` merge function is handed the shell's current value, and
+// it should see the value as authored (`a & b`), not its escaped form; without
+// this, returning it unchanged would re-escape the `&` on every build.
+export function unescapeAttr(value: string): string {
+    return value
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&amp;/g, '&');
+}
+
 /**
  * Serialize a props object into HTML attributes, each with a leading space.
  *
- * Shared by {@link jsx} and by the build's `htmlAttrs` handling, so a page's
+ * Shared by {@link jsx} and by the build's `shellAttrs` handling, so a page's
  * `<html>` attributes are written exactly the way JSX would have written them.
  * @param props - attributes to serialize; `children` and `key` are skipped,
  *   `style` goes through {@link styleToCss}, other objects are JSON, and
@@ -79,7 +128,16 @@ export function renderAttrs(props: Record<string, unknown> | undefined): string 
         .map((k) => {
             const value = props[k];
 
-            if (k === 'style') return ` ${k}="${escapeAttr(styleToCss(value as CSSProperties))}"`;
+            // Only an object needs serializing. A string style is already CSS
+            // text and passes through: styleToCss would iterate its characters
+            // and emit `style="0:c;1:o;2:l..."`, which is what happened both to
+            // `<div style="color:red">` in JSX and to a shell's own style
+            // attribute on its way back out through applyTagAttrs.
+            if (k === 'style') {
+                const css =
+                    typeof value === 'string' ? value : styleToCss(value as Skrapa.CSSProps);
+                return ` ${k}="${escapeAttr(css)}"`;
+            }
 
             if (value === undefined || value === null) return '';
 
@@ -91,7 +149,44 @@ export function renderAttrs(props: Record<string, unknown> | undefined): string 
         .join('');
 }
 
-export function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]): string {
+/**
+ * Render one child to HTML.
+ *
+ * A rendered element passes through untouched; anything else is text and is
+ * escaped. That split is the whole reason elements are boxed: `{'<b>hi</b>'}`
+ * has to come out as visible text while `{<b>hi</b>}` comes out as markup, and
+ * as plain strings the two would be indistinguishable here.
+ *
+ * Arrays recurse rather than flatten up front, so a nested map
+ * (`rows.map((r) => r.cells.map(...))`) renders at every depth instead of being
+ * stringified as "a,b".
+ */
+function renderChild(child: Skrapa.Children): string {
+    if (isElement(child)) return child.toString();
+    if (Array.isArray(child)) return child.map(renderChild).join('');
+    // Booleans render as nothing, so `{flag && <p/>}` emits nothing when false
+    // rather than the word "false". null/undefined likewise. 0 is kept.
+    if (child === null || child === undefined || typeof child === 'boolean') return '';
+    return escapeText(String(child));
+}
+
+/**
+ * The `<>...</>` factory named by tsconfig's `jsxFragmentFactory`. Renders its
+ * children with nothing wrapped around them.
+ *
+ * A real function rather than the bare string `'Fragment'`, because TypeScript
+ * requires the fragment factory to be callable before it will accept `<>` at
+ * all. {@link jsx} still recognizes the string form for direct calls.
+ */
+export function Fragment(props: Skrapa.PropsWithChildren): JSX.Element {
+    return raw(renderChild(props?.children));
+}
+
+export function jsx(
+    tag: Skrapa.Tag,
+    props: Skrapa.Props | undefined,
+    ...children: Skrapa.Children[]
+): JSX.Element {
     if (typeof tag === 'function') {
         return tag({ ...props, children }, ...children);
     }
@@ -100,28 +195,17 @@ export function jsx(tag: Tag, props: Props | undefined, ...children: unknown[]):
     // stray one does not land in the output as an attribute.
     const attrs = renderAttrs(props as Record<string, unknown> | undefined);
 
-    const childStr = children
-        // Fully flatten: a nested map (rows.map(r => r.cells.map(...))) yields
-        // nested arrays, and a shallow flat would stringify them as "a,b".
-        .flat(Infinity)
-        .map((c) =>
-            typeof c === 'string'
-                ? c
-                : c !== null && c !== undefined && c !== false
-                  ? String(c)
-                  : ''
-        )
-        .join('');
+    const childStr = children.map(renderChild).join('');
 
-    if (tag === 'Fragment' || tag === '') return childStr;
+    if (tag === 'Fragment' || tag === '') return raw(childStr);
 
     const tagName = String(tag).toLowerCase();
     if (VOID_ELEMENTS.has(tagName)) {
         if (childStr !== '') {
             throw new Error(`Invalid JSX: void element <${tag}> cannot have children.`);
         }
-        return `<${tag}${attrs} />`;
+        return raw(`<${tag}${attrs} />`);
     }
 
-    return `<${tag}${attrs}>${childStr}</${tag}>`;
+    return raw(`<${tag}${attrs}>${childStr}</${tag}>`);
 }

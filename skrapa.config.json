@@ -1,8 +1,0 @@
-{
-    "input": "src",
-    "output": "dist",
-    "assets": "assets",
-    "root": "./",
-    "port": 8090,
-    "host": "localhost"
-}

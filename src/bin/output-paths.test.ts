@@ -1,11 +1,9 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
     checkCopy,
-    checkEmitted,
     emittedPaths,
     formatProblem,
     outputKey,
@@ -14,7 +12,8 @@ import {
     type Emitted,
 } from './output-paths';
 import { CWD_DIR } from './utils';
-import { buildBin, ROOT_DIR } from '../scripts/utils';
+import { ROOT_DIR } from '../scripts/utils';
+import { caseSkip, ensureBin, runBuild, scaffold, tempDir } from '../scripts/fixture';
 
 const OUTPUT = path.join(CWD_DIR, 'dist');
 
@@ -25,28 +24,6 @@ const page = (dir: string): Emitted => ({
     kind: 'page',
     sources: [at(`src/${dir}/index.html`), at(`src/${dir}/index.tsx`)],
 });
-
-/**
- * A throwaway directory under `.tmp/`, which is gitignored and skipped by
- * eslint and tsc. Inside the repo, not the system temp dir, so a fixture's own
- * `tsc` run resolves `@types/node` by walking up to the repo's node_modules.
- */
-const tempDir = (prefix: string) => {
-    const tmp = path.join(ROOT_DIR, '.tmp');
-    fs.mkdirSync(tmp, { recursive: true });
-    return fs.mkdtempSync(path.join(tmp, prefix));
-};
-
-/** Reason to skip a test that needs two paths differing only in case, or false. */
-const caseSkip = (() => {
-    const probe = tempDir('case-');
-    try {
-        fs.writeFileSync(path.join(probe, 'a'), '');
-        return fs.existsSync(path.join(probe, 'A')) && 'filesystem is case-insensitive';
-    } finally {
-        fs.rmSync(probe, { recursive: true, force: true });
-    }
-})();
 
 describe('src/bin/output-paths.test.ts - outputKey', () => {
     test('keys on the output-relative path, in posix form', () => {
@@ -144,27 +121,6 @@ describe('src/bin/output-paths.test.ts - formatProblem', () => {
         );
     });
 
-    // The lowercased path is spelled out so the fix can be read straight off
-    // the message.
-    test('a case problem names the path it should have been', () => {
-        assert.equal(
-            formatProblem({
-                rule: 'case',
-                outPath: at('dist/About/index.html'),
-                source: page('About'),
-                lowercased: at('dist/about/index.html'),
-                assetOnly: false,
-            }),
-            [
-                'Output path is not lowercase:',
-                '  generated from  src/About/index.html + src/About/index.tsx',
-                '  output path     dist/About/index.html',
-                '  should be       dist/about/index.html',
-                'Rename the source: a mixed-case URL works on some hosts and 404s on others.',
-            ].join('\n')
-        );
-    });
-
     test('names the client entry when the shadowed file is a bundle', () => {
         const message = formatProblem({
             rule: 'collision',
@@ -188,74 +144,6 @@ describe('src/bin/output-paths.test.ts - formatProblem', () => {
         assert.match(message, /^Asset would overwrite another asset:/);
         assert.match(message, /copied from {5}public\/Chores\/index\.html/);
         assert.match(message, /Rename one of the two assets\.$/);
-    });
-});
-
-describe('src/bin/output-paths.test.ts - checkEmitted', () => {
-    test('passes an all-lowercase render', () => {
-        const emitted = emittedPaths(OUTPUT);
-        emitted.record(path.join(OUTPUT, 'index.html'), page(''));
-        emitted.record(path.join(OUTPUT, 'blog/first-post/index.html'), page('blog/first-post'));
-        emitted.record(path.join(OUTPUT, 'blog/client.js'), {
-            kind: 'script',
-            sources: [at('src/blog/client.ts')],
-        });
-
-        assert.deepEqual(checkEmitted(emitted), []);
-    });
-
-    test('flags a page directory that is not lowercase', () => {
-        const emitted = emittedPaths(OUTPUT);
-        emitted.record(path.join(OUTPUT, 'About/index.html'), page('About'));
-
-        const problems = checkEmitted(emitted);
-        assert.equal(problems.length, 1);
-        assert.equal(problems[0].rule, 'case');
-        // Not the assets copy's doing, so a dev rebuild fails on it too.
-        assert.equal(problems[0].assetOnly, false);
-        assert.match(formatProblem(problems[0]), /should be {7}dist\/about\/index\.html/);
-    });
-
-    // The rewritten `src`/`href` follows the file, so a mixed-case client entry
-    // ships a working tag pointing at a URL that 404s on a case-sensitive host.
-    test('flags a bundle and a stylesheet, not just a page', () => {
-        const emitted = emittedPaths(OUTPUT);
-        emitted.record(path.join(OUTPUT, 'about/Client.js'), {
-            kind: 'script',
-            sources: [at('src/about/Client.ts')],
-        });
-        emitted.record(path.join(OUTPUT, 'about/Style.css'), {
-            kind: 'stylesheet',
-            sources: [at('src/about/Style.css')],
-        });
-
-        assert.deepEqual(
-            checkEmitted(emitted).map((problem) => path.basename(problem.outPath)),
-            ['Client.js', 'Style.css']
-        );
-    });
-
-    // The output dir is not part of any URL, so a project living somewhere
-    // capitalized must not fail its own build.
-    test('judges only the part below the output root', () => {
-        const output = path.join(CWD_DIR, 'Users', 'Brian', 'Sites', 'dist');
-        const emitted = emittedPaths(output);
-        emitted.record(path.join(output, 'about/index.html'), page('about'));
-
-        assert.deepEqual(checkEmitted(emitted), []);
-    });
-
-    // Only the first writer of a path holds it, but both wrote a file: on a
-    // case-sensitive filesystem these are two pages, and the second's case
-    // must not be lost to that bookkeeping.
-    test('flags a mixed-case write even when a lowercase one claimed the path', () => {
-        const emitted = emittedPaths(OUTPUT);
-        emitted.record(path.join(OUTPUT, 'about/index.html'), page('about'));
-        emitted.record(path.join(OUTPUT, 'About/index.html'), page('About'));
-
-        const problems = checkEmitted(emitted);
-        assert.equal(problems.length, 1);
-        assert.match(formatProblem(problems[0]), /output path {5}dist\/About\/index\.html/);
     });
 });
 
@@ -362,16 +250,6 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
         }
     });
 
-    // Dropping the rule for assets is not a general amnesty for uppercase: a
-    // page directory named like one of those host files is still caught,
-    // because the render is still judged.
-    test('still flags a generated page named like a host file', () => {
-        const emitted = emittedPaths(OUTPUT);
-        emitted.record(path.join(OUTPUT, 'License/index.html'), page('License'));
-
-        assert.equal(checkEmitted(emitted).length, 1);
-    });
-
     // Two assets differing only in case can only coexist on a case-sensitive
     // filesystem; where they cannot, the second write lands on the first file
     // and there is no fixture to build. That is the asymmetry the check is for
@@ -419,46 +297,8 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
 
 // The end-to-end cases: real builds of projects that break each rule. Run the
 // CLI as a subprocess, since the failure being asserted is a non-zero exit.
-let binBuilt = false;
-
-/** Build the bin once per run, so the binary under test is this source. */
-const ensureBin = () => {
-    if (binBuilt) return;
-    buildBin();
-    binBuilt = true;
-};
-
-const runBuild = (fixture: string) => {
-    const binDir = path.join(ROOT_DIR, 'node_modules', '.bin');
-    const build = spawnSync(
-        process.execPath,
-        [path.join(ROOT_DIR, 'bin', 'index.js'), 'build', '--assets', 'public'],
-        {
-            cwd: fixture,
-            encoding: 'utf-8',
-            // The build shells out to a bare `tsc`, so make sure the repo's
-            // copy is on PATH however the tests were launched.
-            env: { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}` },
-        }
-    );
-
-    return { status: build.status, output: `${build.stdout}\n${build.stderr}` };
-};
-
-/** A minimal buildable project: a root shell and a root page. */
-const scaffold = (fixture: string) => {
-    const write = (file: string, body: string) => {
-        const full = path.join(fixture, file);
-        fs.mkdirSync(path.dirname(full), { recursive: true });
-        fs.writeFileSync(full, body);
-    };
-
-    write('tsconfig.json', fs.readFileSync(path.join(ROOT_DIR, 'template/tsconfig.json'), 'utf-8'));
-    write('src/index.html', '<!doctype html>\n<html><head></head><body></body></html>');
-    write('src/index.tsx', 'export const Page = (): Skrapa.Page => <h1>home</h1>;\n');
-
-    return write;
-};
+// The harness itself lives in ../scripts/fixture.ts, shared with the other
+// test files that need a real build.
 
 describe('src/bin/output-paths.test.ts - skrapa build, asset shadowing a page', () => {
     let fixture: string;
@@ -521,7 +361,13 @@ describe('src/bin/output-paths.test.ts - skrapa build, asset shadowing a page', 
     });
 });
 
-describe('src/bin/output-paths.test.ts - skrapa build, mixed-case output paths', () => {
+// A rule that every generated path be lowercase used to live here, and this
+// build used to be the proof that it failed. It was a proxy for the real
+// question: not whether a path is mixed-case, but whether the URLs pointing at
+// it agree. link-check.ts asks that one directly, so a mixed-case directory is
+// now the author's business. Kept as a build, because the thing worth asserting
+// about a removed rule is that a real project no longer trips over it.
+describe('src/bin/output-paths.test.ts - skrapa build, a mixed-case page directory', () => {
     let fixture: string;
     let result: { status: number | null; output: string };
 
@@ -531,47 +377,24 @@ describe('src/bin/output-paths.test.ts - skrapa build, mixed-case output paths',
         const write = scaffold(fixture);
 
         write('src/About/index.tsx', 'export const Page = (): Skrapa.Page => <h1>about</h1>;\n');
-        // Mixed-case, but an asset, so it is copied as named and never reported.
+        // Linked with the spelling it is built under, which is all that was
+        // ever actually at stake.
+        write(
+            'src/index.tsx',
+            'export const Page = (): Skrapa.Page => <a href="About/">about</a>;\n'
+        );
         write('public/Logo.svg', '<svg />');
-        write('public/favicon.ico', '');
 
         result = runBuild(fixture);
     });
 
     after(() => fs.rmSync(fixture, { recursive: true, force: true }));
 
-    test('fails the build', () => {
-        assert.equal(result.status, 1, `expected exit 1, got ${result.status}\n${result.output}`);
+    test('builds, since every reference to it agrees on the spelling', () => {
+        assert.equal(result.status, 0, `expected exit 0, got ${result.status}\n${result.output}`);
     });
 
-    test('names the generated page and the lowercase path it should have', () => {
-        assert.match(result.output, /Output path is not lowercase:/);
-        for (const named of [
-            'src/About/index.tsx',
-            'dist/About/index.html',
-            'dist/about/index.html',
-        ]) {
-            assert.ok(result.output.includes(named), `expected the message to name ${named}`);
-        }
-    });
-
-    // The page and the asset are both mixed-case, and only the page is the
-    // build's business. Asserted through a real build because this is the split
-    // the rule is about.
-    test('says nothing about the mixed-case asset', () => {
-        const complaints = result.output.match(/Output path is not lowercase:/g) ?? [];
-        assert.equal(
-            complaints.length,
-            1,
-            `expected only the generated page to be reported\n${result.output}`
-        );
-        assert.ok(
-            !result.output.includes('public/Logo.svg'),
-            'an asset keeps whatever case it was named with'
-        );
-    });
-
-    test('says nothing about the paths that are already lowercase', () => {
-        assert.ok(!result.output.includes('favicon'), 'a lowercase asset should not be reported');
+    test('emits the directory under the name it was written with', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'dist/About/index.html')));
     });
 });

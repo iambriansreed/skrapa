@@ -185,8 +185,20 @@ const CONFIG = [
     ['host', '"localhost"', 'Interface the dev server binds to'],
     ['origin', '""', 'Public URL when a proxy or tunnel fronts the dev server'],
     ['base', '"/"', 'Served-from base path, injected as <base href>'],
+    ['ignore', '[]', 'URL globs the link check leaves alone'],
     ['root', 'cwd', 'Directory input, output and assets resolve against'],
 ];
+
+// The message, verbatim. Both spellings on screen together is the whole point
+// of it: neither one reads as wrong on its own.
+const LINK_ERROR = `Reference does not resolve:
+  in              dist/resume/index.html
+  reference       /brian_reed_resume.pdf
+  did you mean    /Brian_Reed_Resume.pdf   (differs only in case)`;
+
+const IGNORE_SAMPLE = /* TypeScript */ `export default {
+  ignore: ['/api/**', '/uploads/*.pdf'],
+} satisfies Skrapa.Config;`;
 
 const COMMANDS = [
     [
@@ -202,7 +214,7 @@ const COMMANDS = [
     [
         'npx skrapa build',
         'Render the site to static HTML in the output dir.',
-        '--input, --output, --assets, --base, --root',
+        '--input, --output, --assets, --base, --ignore, --root',
     ],
     [
         'npx skrapa page "<name>" [parent]',
@@ -252,6 +264,10 @@ const TOC = [
     {
         hash: 'assets',
         label: 'Assets',
+    },
+    {
+        hash: 'links',
+        label: 'Links & references',
     },
     {
         hash: 'config',
@@ -519,10 +535,12 @@ export function Page(): Skrapa.Page {
                         <p>
                             A <em>root-relative</em> <code>href</code> is the one case that differs
                             from scripts, because a stylesheet can also come from the assets dir.
-                            Skrapa looks in <code>assets/</code> first and leaves the tag alone if
-                            the file is there, since that whole directory is copied across anyway;
+                            Skrapa looks in <code>assets/</code> first and copies nothing if the
+                            file is there, since that whole directory is copied across anyway;
                             otherwise it looks in the input root and copies that file over. Either
-                            way the <code>href</code> stays exactly as you wrote it.
+                            way the <code>href</code> is written back naming the same file, with the{' '}
+                            <a href="/docs/#links">base</a> on it, which at the default base is the
+                            path you already wrote.
                         </p>
                         <p>
                             That is why the scaffolded about page links both.{' '}
@@ -536,6 +554,73 @@ export function Page(): Skrapa.Page {
                             Everything in <code>assets/</code> (configurable) is copied to the root
                             of <code>dist</code> untouched: images, fonts, <code>CNAME</code>, or
                             any hand-written CSS not tied to a specific page.
+                        </p>
+
+                        <h2 id="links">Links &amp; references</h2>
+                        <p>
+                            Once the output is written, every local URL in it is checked against the
+                            files the build actually emitted. A reference that names nothing fails
+                            the build:
+                        </p>
+                        <pre class="cli">
+                            <code>{LINK_ERROR}</code>
+                        </pre>
+                        <p>
+                            Case gets called out on its own because it is the failure local testing
+                            cannot reproduce. macOS and Windows fold case when resolving a path, so
+                            a page linking <code>/fonts/archivo.woff2</code> against an emitted{' '}
+                            <code>fonts/Archivo.woff2</code> renders perfectly on the machine that
+                            built it and 404s on GitHub Pages: a dead download, or a preload and{' '}
+                            <code>@font-face</code> pair that quietly falls back to a system font.
+                            The check compares against a list of the real filenames instead of
+                            asking the filesystem, so it gives the same answer wherever it runs.
+                        </p>
+                        <p>
+                            References are read from HTML (<code>href</code>, <code>src</code>,{' '}
+                            <code>srcset</code>) and from CSS (<code>url()</code>,{' '}
+                            <code>@import</code>, <code>image-set()</code>), inline{' '}
+                            <code>{'<style>'}</code> included. Query strings and fragments are
+                            ignored, <code>/about</code> and <code>/about/</code> both resolve to{' '}
+                            <code>about/index.html</code>, and every broken reference in the build
+                            is reported in one run rather than one per build.
+                        </p>
+                        <p>
+                            Anything that names a file outside the build is skipped: another origin
+                            (<code>https://</code>, <code>//cdn/</code>), a <code>data:</code>,{' '}
+                            <code>mailto:</code> or <code>tel:</code> URI, and a bare{' '}
+                            <code>#fragment</code>. For a path something other than the build serves
+                            (a proxied route, a file uploaded out of band) list it under{' '}
+                            <code>ignore</code>:
+                        </p>
+                        <CodeCard name="skrapa.config.ts" code={IGNORE_SAMPLE} />
+                        <p>
+                            <code>*</code> matches within one path segment, <code>**</code> across
+                            them, and <code>?</code> matches a single character. A trailing{' '}
+                            <code>/**</code> covers the path itself as well, so <code>/api/**</code>{' '}
+                            takes care of a link to <code>/api</code>. A pattern is matched against
+                            the URL as written and against the site-absolute path it resolves to, so
+                            one entry covers <code>/uploads/brief.pdf</code> and a page-relative{' '}
+                            <code>../uploads/brief.pdf</code> alike.
+                        </p>
+                        <p>
+                            In dev the same check runs, but a broken reference is a warning rather
+                            than a failure. Mid-edit it usually means a link to a file that is about
+                            to exist, and the server you are watching stays up.
+                        </p>
+                        <p>
+                            Under a <a href="/docs/#config">base path</a> there is a second way to
+                            get this wrong, and it is the same bug wearing a different hat.{' '}
+                            <code>{'<base href>'}</code> governs <em>relative</em> URLs only. A
+                            root-relative <code>/style.css</code> ignores it completely and means
+                            the domain root, so on a project site at{' '}
+                            <code>https://user.github.io/repo/</code> it is a request for a file
+                            that is not there. It resolves against a dev server rooted at{' '}
+                            <code>/</code> and 404s once deployed. Skrapa writes the base into every
+                            path it rewrites for you, so a bundled script lands as{' '}
+                            <code>/repo/client.js</code>; for links you write by hand, either
+                            include the base or keep them relative (<code>about/</code>,{' '}
+                            <code>./</code>) and let <code>{'<base href>'}</code> do the work. The
+                            check names the URL with the base on it when it finds one missing.
                         </p>
 
                         <h2 id="config">Configuration</h2>
@@ -610,8 +695,10 @@ export function Page(): Skrapa.Page {
                             <a href="/docs/#config">
                                 <code>skrapa.config.ts</code>
                             </a>
-                            . Skrapa injects it as <code>&lt;base href&gt;</code>, which is what
-                            keeps your root-relative links and script tags resolving. Leave{' '}
+                            . Skrapa injects it as <code>&lt;base href&gt;</code> and writes it into
+                            every path it rewrites for you, so your script and stylesheet tags land
+                            on the right URLs; links you write by hand need it too, or need to be
+                            relative (see <a href="/docs/#links">links &amp; references</a>). Leave{' '}
                             <code>base</code> at <code>&quot;/&quot;</code> for a user or
                             organization site, or for a custom domain. For a custom domain, drop a{' '}
                             <code>CNAME</code> file into{' '}

@@ -1,6 +1,6 @@
 /**
- * The rules every path the build writes has to satisfy, checked before
- * anything is copied over the output.
+ * The rule every path the build writes has to satisfy, checked before anything
+ * is copied over the output.
  *
  * **Nothing may be written twice by different sources.** The assets dir is
  * copied over the output *after* every page has been rendered, so an asset
@@ -13,25 +13,18 @@
  * webpack's CopyPlugin refuses to overwrite an existing compilation asset
  * unless told otherwise.
  *
- * **Every path the render writes must be lowercase.** A mixed-case URL is
- * served by a case-insensitive host and 404s on a case-sensitive one, so
- * `dist/About/` works locally on macOS and breaks once deployed (or the
- * reverse). Skrapa cannot fix that by renaming: a page directory is reached by
- * hand-written `<a href>` that skrapa never parses. So the build names the file
- * and stops, and the rename happens in the source tree where the links are.
- * `skrapa page` already slugifies to lowercase, so this is the existing
- * convention made enforceable.
+ * Paths are compared the way the least strict filesystem would (see
+ * {@link outputKey}), so the answer does not depend on which machine the build
+ * ran on. The rule runs over the whole output tree, so one run reports
+ * everything wrong with it rather than one problem per build.
  *
- * The rule stops at what is generated from `input`. An asset is copied
- * verbatim and its name is not skrapa's to legislate: `CNAME` has to keep its
- * case for GitHub Pages to read it, and there is no knowing what else a host or
- * a third-party script expects to find spelled exactly one way. Enforcing it
- * there meant maintaining a guessed list of exceptions, so the assets tree is
- * left alone. The collision rule above still covers the case that actually
- * corrupts a build.
- *
- * Both rules run over the whole output tree, so one run reports everything
- * wrong with it rather than one problem per build.
+ * A render that writes a mixed-case path used to be a second rule here. It was
+ * a proxy for the real question, which is whether the URLs pointing at that
+ * path agree with it, and link-check.ts now answers that one directly: it reads
+ * files rather than paths, and it can only run once the assets have been
+ * copied. It reports through the {@link Problem} type below all the same, so
+ * the build has one list of what is wrong with its output, one formatter, and
+ * one place that decides what is fatal.
  *
  * Kept out of cmd-build.ts so the comparison, the walk and the messages can be
  * tested without running a build, and so `dev` can reuse all three for the
@@ -91,13 +84,6 @@ export type EmittedPaths = {
     record(outPath: string, emitted: Emitted): void;
     /** What already claimed `outPath`, if anything. */
     heldBy(outPath: string): Emitted | undefined;
-    /**
-     * Every path written, as authored rather than normalized, which is what
-     * the lowercase rule has to read. Empty for a registry restored from a
-     * manifest: that records only which source holds each path, since a
-     * lowercase key cannot be turned back into the path that produced it.
-     */
-    writes(): { outPath: string; emitted: Emitted }[];
     /** Everything recorded, keyed by {@link outputKey}, as {@link readManifest} reads it back. */
     manifest(): Record<string, Emitted>;
 };
@@ -110,11 +96,6 @@ export function emittedPaths(output: string, initial: Record<string, Emitted> = 
     // Keyed the way a filesystem would see it: what owns a path, for the
     // collision rule.
     const held = new Map<string, Emitted>(Object.entries(initial));
-    // Keyed by the exact path: everything written, for the lowercase rule.
-    // Separate because two writes differing only in case are one entry in
-    // `held` and two real files on a case-sensitive filesystem, and the second
-    // one's case still has to be reported.
-    const written = new Map<string, Emitted>();
 
     return {
         output,
@@ -123,10 +104,8 @@ export function emittedPaths(output: string, initial: Record<string, Emitted> = 
             // is reported against the source that actually put it there.
             const key = outputKey(output, outPath);
             if (!held.has(key)) held.set(key, emitted);
-            if (!written.has(outPath)) written.set(outPath, emitted);
         },
         heldBy: (outPath) => held.get(outputKey(output, outPath)),
-        writes: () => [...written].map(([outPath, emitted]) => ({ outPath, emitted })),
         manifest: () => Object.fromEntries(held),
     };
 }
@@ -171,7 +150,10 @@ export function readManifest(workingDir: string, output: string): EmittedPaths {
     }
 }
 
-/** One rule violation: a path two sources want, or a path that is not lowercase. */
+/**
+ * One rule violation: a path two sources want, a path that is not lowercase, or
+ * a reference that names no emitted file.
+ */
 export type Problem = (
     | {
           rule: 'collision';
@@ -181,14 +163,28 @@ export type Problem = (
           incoming: Emitted;
       }
     | {
-          rule: 'case';
-          /** What would write the mixed-case path. */
-          source: Emitted;
-          /** The same path, lowercased below the output root. */
-          lowercased: string;
+          rule: 'link';
+          /** The URL as it was authored, minus any query or fragment. */
+          reference: string;
+          /**
+           * Every emitted file carrying it, in walk order. One reference in a
+           * shared shell reaches every page built from that shell, and it is
+           * still one thing to fix.
+           */
+          files: string[];
+          /** The closest real file, when one is close enough to name. */
+          suggestion?: {
+              /** That file as a URL, shaped like the reference it replaces. */
+              url: string;
+              /** Whether it differs from the reference in nothing but case. */
+              caseOnly: boolean;
+          };
       }
 ) & {
-    /** The absolute output path the problem is about. */
+    /**
+     * The absolute output path the problem is about: the file that would be
+     * written, or for a link, the first of the files carrying the reference.
+     */
     outPath: string;
     /**
      * True when only the assets copy would write this file. A dev rebuild
@@ -217,8 +213,9 @@ const SOURCE_LABEL: Record<EmittedKind, string> = {
  *
  * A collision names all three paths, because none of them is enough alone: the
  * output path does not say which page was lost, and the asset does not say
- * what it shadowed. A case problem names the path it should have been, so the
- * fix can be copied straight out of the message.
+ * what it shadowed. A link problem names the closest real file, since a
+ * reference and the file it missed by one letter of case are unreadable apart
+ * and obvious side by side.
  * @param problem - the problem to describe
  * @returns a multi-line message, with no trailing newline
  */
@@ -228,56 +225,51 @@ export function formatProblem(problem: Problem): string {
     const sourceRow = (emitted: Emitted) =>
         row(SOURCE_LABEL[emitted.kind], emitted.sources.map(rel).join(' + '));
 
-    if (problem.rule === 'collision') {
+    if (problem.rule === 'link') {
+        // Enough files to see the pattern (a shell, or one page), not the whole
+        // site listed back when a shared shell put it in all forty pages.
+        const named = problem.files.slice(0, 3).map(rel);
+        const rest = problem.files.length - named.length;
+        const { suggestion } = problem;
+
         return [
-            COLLISION_HEADLINE[problem.held.kind],
-            sourceRow(problem.held),
-            row('overwritten by', problem.incoming.sources.map(rel).join(' + ')),
-            row('output path', rel(problem.outPath)),
-            problem.held.kind === 'asset'
-                ? 'Rename one of the two assets.'
-                : 'Remove one of the two sources, or rename the asset.',
+            'Reference does not resolve:',
+            row('in', named.join(', ') + (rest > 0 ? ` (+${rest} more)` : '')),
+            row('reference', problem.reference),
+            ...(suggestion
+                ? [
+                      row(
+                          'did you mean',
+                          suggestion.url + (suggestion.caseOnly ? '   (differs only in case)' : '')
+                      ),
+                  ]
+                : []),
+            suggestion?.caseOnly
+                ? 'Spell the two the same way: case is part of the URL on a case-sensitive host, and ignored on the machine you tested it on.'
+                : 'Fix the reference, or add it to `ignore` if it is served by something other than the build.',
         ].join('\n');
     }
 
     return [
-        'Output path is not lowercase:',
-        sourceRow(problem.source),
+        COLLISION_HEADLINE[problem.held.kind],
+        sourceRow(problem.held),
+        row('overwritten by', problem.incoming.sources.map(rel).join(' + ')),
         row('output path', rel(problem.outPath)),
-        row('should be', rel(problem.lowercased)),
-        'Rename the source: a mixed-case URL works on some hosts and 404s on others.',
+        problem.held.kind === 'asset'
+            ? 'Rename one of the two assets.'
+            : 'Remove one of the two sources, or rename the asset.',
     ].join('\n');
 }
 
 /**
- * The case problem with `outPath`, if it has one.
+ * Every file under `dir`, as paths relative to it, in a stable order.
  *
- * Only the part below the output root is judged. The output dir itself is not
- * part of any URL, so a project living in `/Users/Brian/Sites/` must not fail
- * its own build.
- *
- * Never `assetOnly`: only the render is judged, and what it writes is wrong
- * whatever the build was asked to do.
- * @param output - absolute output dir
- * @param outPath - the absolute path to check
- * @param source - what would write it
+ * Exported for link-check.ts, which needs the same list for a different
+ * question: not what a copy would write, but what a URL is allowed to name.
+ * @param dir - absolute directory to walk
+ * @param rel - internal, the subdirectory being walked
  */
-function caseProblem(output: string, outPath: string, source: Emitted): Problem | null {
-    const rel = outputRelative(output, outPath);
-    const lower = rel.toLowerCase();
-    if (rel === lower) return null;
-
-    return {
-        rule: 'case',
-        outPath,
-        source,
-        lowercased: path.join(output, ...lower.split('/')),
-        assetOnly: false,
-    };
-}
-
-/** Every file under `dir`, as paths relative to it, in a stable order. */
-function walk(dir: string, rel = ''): string[] {
+export function walk(dir: string, rel = ''): string[] {
     return fs
         .readdirSync(path.join(dir, rel), { withFileTypes: true })
         .sort((a, b) => (a.name < b.name ? -1 : 1))
@@ -287,22 +279,6 @@ function walk(dir: string, rel = ''): string[] {
             // copies the link itself rather than walking through it.
             return entry.isDirectory() ? walk(dir, child) : [child];
         });
-}
-
-/**
- * Check the paths the render itself wrote: pages, client bundles and
- * stylesheets.
- *
- * Only the lowercase rule applies here. Two sources landing on one generated
- * path is possible but is not something an author can be told to fix by
- * renaming an asset, and the lowercase rule catches the case that produces it.
- * @param emitted - what the render wrote
- */
-export function checkEmitted(emitted: EmittedPaths): Problem[] {
-    return emitted.writes().flatMap((write) => {
-        const problem = caseProblem(emitted.output, write.outPath, write.emitted);
-        return problem ? [problem] : [];
-    });
 }
 
 /**

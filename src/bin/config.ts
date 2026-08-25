@@ -154,6 +154,13 @@ function normalizeConfig(raw: Required<RawConfig>): ResolvedConfig {
         !rawOrigin || /^[a-z][a-z0-9+.-]*:\/\//i.test(rawOrigin) ? rawOrigin : `http://${rawOrigin}`
     ) as Skrapa.Origin;
 
+    // The only list-valued setting, so it is the only one that has to reconcile
+    // two shapes: the config file gives an array, and a `--ignore "/a/*,/b/*"`
+    // flag can only give one comma-separated string.
+    const ignore = (Array.isArray(raw.ignore) ? raw.ignore : String(raw.ignore).split(','))
+        .map((glob) => String(glob).trim())
+        .filter(Boolean);
+
     return {
         input: String(raw.input),
         output: String(raw.output),
@@ -162,6 +169,7 @@ function normalizeConfig(raw: Required<RawConfig>): ResolvedConfig {
         host: String(raw.host),
         origin,
         base: base as Skrapa.BasePath,
+        ignore,
         // Absolute so require() and every derived path (input/output/assets/
         // WORKING_DIR) follow --root instead of the current directory.
         root: path.resolve(CWD_DIR, String(raw.root)),

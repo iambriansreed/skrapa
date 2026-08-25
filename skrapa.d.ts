@@ -126,13 +126,6 @@ declare global {
              *
              * In dev mode this directory is served, and watched so a change
              * triggers a reload.
-             *
-             * Every path generated from `input` must be lowercase, since a
-             * mixed-case URL is served by a case-insensitive host and 404s on
-             * a case-sensitive one. The build names the file and stops rather
-             * than renaming it, because the links to it live in your source.
-             * Files copied from `assets` are exempt: they keep whatever case
-             * you named them with, so `CNAME` still reaches your host intact.
              * @default "dist"
              */
             output?: string;
@@ -192,10 +185,21 @@ declare global {
              *
              * For a GitHub Pages project site served under a subpath, set it to
              * the repo name, e.g. `"/my-site/"`. A trailing slash is added if
-             * missing.
+             * missing. Paths skrapa rewrites carry it; a root-relative URL you
+             * write by hand has to carry it too, since `<base href>` does not
+             * apply to those.
              * @default "/"
              */
             base?: BasePath;
+            /**
+             * URL globs the build's link check leaves alone, for paths served
+             * by something other than the build: `['/api/**', '/uploads/*.pdf']`.
+             * `*` matches within a path segment, `**` across them (a trailing
+             * `/**` covers the path itself too), `?` one character. A
+             * `--ignore` flag takes them comma-separated.
+             * @default []
+             */
+            ignore?: readonly string[];
             /**
              * Directory that `input`, `output` and `assets` resolve against.
              *

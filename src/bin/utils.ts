@@ -68,6 +68,7 @@ export const CONFIG_KEYS: ConfigKey[] = [
     'host',
     'origin',
     'base',
+    'ignore',
     'root',
 ];
 
@@ -84,5 +85,6 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     host: 'localhost',
     origin: '',
     base: '/',
+    ignore: [],
     root: process.cwd(),
 } as const;

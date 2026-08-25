@@ -23,7 +23,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 
 /** The config keys a rebuild reads. port/host/origin belong to the server. */
-const BUILD_KEYS = ['root', 'input', 'output', 'assets', 'base'] as const;
+const BUILD_KEYS = ['root', 'input', 'output', 'assets', 'base', 'ignore'] as const;
 
 /**
  * The flags to hand the `skrapa build` subprocess each rebuild runs.
@@ -36,7 +36,8 @@ const BUILD_KEYS = ['root', 'input', 'output', 'assets', 'base'] as const;
  *
  * Resolved values are sent rather than the raw argv, so a setting that came
  * from skrapa.config.ts or from a programmatic override survives too, not only
- * one that was typed as a flag.
+ * one that was typed as a flag. `ignore` is a list, and goes over as the
+ * comma-separated form its flag takes (see normalizeConfig).
  * @param config - the fully resolved config this dev server is serving
  * @returns a leading-space-prefixed flag string, safe to append to a command
  */

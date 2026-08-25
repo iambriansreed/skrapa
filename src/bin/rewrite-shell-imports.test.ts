@@ -28,6 +28,7 @@ before(() => {
         output: path.join(root, 'dist'),
         assets: path.join(root, 'assets'),
         compiled: path.join(root, 'compiled'),
+        base: '/',
     };
 
     // A compiled client entry, as tsc would have left it, plus one nested in a
@@ -109,10 +110,11 @@ describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, styleshee
         assert.match(read('dist/about/style.css'), /color: blue/);
     });
 
-    test('leaves a root-relative href that the assets dir already provides', () => {
+    test('does not copy over a root-relative href the assets dir provides', () => {
         const tag = '<link rel="stylesheet" href="/style.css" />';
         // assets/style.css exists and the assets dir is copied wholesale, so
-        // this must neither be rewritten nor copied over the asset.
+        // this must not be copied over the asset. At the default base the href
+        // is written back exactly as authored.
         assert.equal(rewriteShellImports(tag, '', dirs), tag);
     });
 
@@ -244,5 +246,52 @@ describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, styleshee
         ]) {
             assert.equal(rewriteShellImports(tag, 'about', dirs), tag);
         }
+    });
+});
+
+// `<base href>` governs relative URLs only, so a root-relative path skrapa
+// writes has to carry the base itself. Without this a project site under
+// `/repo/` ships `<script src="/client.js">`: a request to the domain root,
+// which the dev server happens to answer and the deployed host 404s.
+describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, under a base', () => {
+    const based = () => ({ ...dirs, base: '/repo/' });
+
+    test('writes the base into a bundled script path', () => {
+        const out = rewriteShellImports('<script src="./client.ts"></script>', 'about', based());
+        assert.match(out, /src="\/repo\/about\/client\.js"/);
+        // The file still lands at the output path the URL resolves to.
+        assert.ok(exists('dist/about/client.js'));
+    });
+
+    test('writes the base into a copied stylesheet path', () => {
+        const out = rewriteShellImports(
+            '<link rel="stylesheet" href="./style.css" />',
+            'about',
+            based()
+        );
+        assert.match(out, /href="\/repo\/about\/style\.css"/);
+        assert.ok(exists('dist/about/style.css'));
+    });
+
+    // The two cases that used to return the tag untouched. Both name a path
+    // below the base, and neither href as authored does.
+    test('writes the base into a root-relative href the assets dir provides', () => {
+        const out = rewriteShellImports('<link rel="stylesheet" href="/style.css" />', '', based());
+        assert.match(out, /href="\/repo\/style\.css"/);
+    });
+
+    test('writes the base into a root-relative href from the input root', () => {
+        const out = rewriteShellImports('<link rel="stylesheet" href="/style.css" />', '', {
+            ...based(),
+            assets: path.join(root, 'no-assets'),
+        });
+        assert.match(out, /href="\/repo\/style\.css"/);
+        assert.ok(exists('dist/style.css'));
+    });
+
+    // A URL on another origin is not ours to prefix.
+    test('leaves another origin alone, base or no base', () => {
+        const tag = '<link rel="stylesheet" href="https://cdn.example.com/lib.css" />';
+        assert.equal(rewriteShellImports(tag, '', based()), tag);
     });
 });

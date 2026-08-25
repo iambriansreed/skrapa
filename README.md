@@ -45,6 +45,8 @@ A `<script src="....ts">` or `<link rel="stylesheet" href="....css">` can go in 
 - **Relative** (`./client.ts`, `./style.css`) resolves against the directory of the file it was written in: the shell's directory for a shell, the page's own directory for page JSX. It never reaches `assets/`.
 - **Root-relative** (`/style.css`) resolves from `assets/` first, then from the input root. `/client.ts` likewise resolves from the input root.
 
+Either way the tag is rewritten to the built file's URL, with the [`base`](#configuration) on it, which at the default base is the path you already wrote.
+
 That asymmetry is the one worth remembering: `assets/` is copied to the **output root**, so only a root-relative path can name something in it. A stylesheet living in `assets/style.css` is `/style.css`, never `./style.css`, no matter which file references it. Get it wrong and the build says so, and names the file it found in `assets/`.
 - **Another origin** (`https://cdn/lib.css`, `//cdn/lib.css`) is left exactly as written, since the browser fetches it directly.
 
@@ -52,13 +54,33 @@ That's why the scaffolded about page links both. `/style.css` picks up the globa
 
 `assets/` is copied over `dist/` after every page is rendered, so a file in it can land on a path the build just wrote: `assets/about/index.html` would replace the page built from `src/about/`, and nothing about the output would look wrong. The build refuses instead, naming the two sources and the output path they meet at, and exits non-zero. Paths are compared case-insensitively, so `assets/About/` is caught on Linux as well as on macOS. In dev mode the copy is skipped and logged rather than failing, so the server you are watching stays up.
 
-### Output paths are lowercase
+### Every reference has to resolve
 
-Every path built from `src/` has to be lowercase. `src/About/` produces `dist/About/index.html`, which a case-insensitive host serves and a case-sensitive one 404s, so the same URL works on your laptop and breaks once deployed. The build names the file and the lowercase path it should have had, and stops.
+Once the output is written, every local URL in it is checked against the files the build actually emitted. A reference that names nothing fails the build:
 
-It does not rename anything for you. Skrapa rewrites the `src`/`href` of the tags it resolves, but a page directory is reached by hand-written `<a href>` that skrapa never parses, so renaming on the way out would just move the breakage somewhere it cannot see. The rename belongs in the source tree, next to the links. `skrapa page` already slugifies names to lowercase, so scaffolded pages satisfy this by construction.
+```
+Reference does not resolve:
+  in              dist/resume/index.html
+  reference       /brian_reed_resume.pdf
+  did you mean    /Brian_Reed_Resume.pdf   (differs only in case)
+Spell the two the same way: case is part of the URL on a case-sensitive host, and ignored on the machine you tested it on.
+```
 
-`assets/` is not checked. Those files are copied verbatim and their names are yours: `CNAME` has to keep its case for GitHub Pages to read it, and there is no knowing what else a host or a third-party script expects to find spelled exactly one way. The collision check above still compares case-insensitively, so an asset landing on a generated path is caught whatever either one is called.
+Case is called out because it is the failure local testing cannot reproduce. macOS and Windows fold case when resolving a path, so a page linking `/fonts/archivo.woff2` against an emitted `fonts/Archivo.woff2` renders perfectly on the machine that built it and 404s on GitHub Pages: a dead download, or a preload and `@font-face` pair that quietly falls back to a system font. The check compares against a list of the real filenames rather than asking the filesystem, so it gives the same answer wherever it runs.
+
+Read from HTML (`href`, `src`, `srcset`, `imagesrcset`) and from CSS (`url()`, `@import`, `image-set()`), including inline `<style>`. Query strings and fragments are ignored, `/about` and `/about/` both resolve to `about/index.html`, and every broken reference in the build is reported in one run. Another origin (`https://`, `//cdn/`), a `data:`/`mailto:`/`tel:` URI and a bare `#fragment` name nothing in the build and are skipped, as is anything matching an [`ignore`](#configuration) glob, which is the way out for a URL something other than the build serves:
+
+```ts
+export default {
+    ignore: ['/api/**', '/uploads/*.pdf'],
+} satisfies Skrapa.Config;
+```
+
+`*` matches within one path segment, `**` across them, `?` a single character, and a trailing `/**` covers the path itself as well, so `/api/**` takes care of a link to `/api`. Patterns are matched against the URL as written and against the site-absolute path it resolves to, so one entry covers `/uploads/brief.pdf` and a page-relative `../uploads/brief.pdf` alike.
+
+In dev mode a broken reference is a warning, not a failure. Mid-edit it usually means a link to a file that is about to exist, and the server you are watching stays up.
+
+Under a `base` there is a second way to get this wrong, and it is the same bug in different clothes. `<base href>` governs **relative** URLs only: a root-relative `/style.css` ignores it and means the domain root, so on a project site at `https://user.github.io/repo/` it asks for a file that is not there. It resolves against a dev server rooted at `/` and 404s once deployed. Skrapa writes the base into every path it rewrites for you, so a bundled script lands as `/repo/client.js`; links you write by hand either carry the base or stay relative (`about/`, `./`) and let `<base href>` resolve them. The check names the URL with the base on it when it finds one missing.
 
 ## Quick Start
 
@@ -114,11 +136,11 @@ Per-command flags:
 | ------- | ------------ |
 | `init` (default) | `-f` / `--force` (overwrite existing files), `--no-dev` (skip the dev server) |
 | `dev` | `--port`, `--host`, `--origin`, `-v` / `--verbose`, plus the build flags |
-| `build` | `--input`, `--output`, `--assets`, `--base`, `--root` |
+| `build` | `--input`, `--output`, `--assets`, `--base`, `--ignore`, `--root` |
 | `page` | `<name>` and `[parent]` positionals, plus `--input` / `--root` |
 | `fix` | `--root` (the tree to migrate), `--output` (the dir to leave alone) |
 
-Every command accepts the [config](#configuration) flags (`--input`, `--output`, `--assets`, `--port`, `--host`, `--origin`, `--base`, `--root`), which override `skrapa.config.ts`.
+Every command accepts the [config](#configuration) flags (`--input`, `--output`, `--assets`, `--port`, `--host`, `--origin`, `--base`, `--ignore`, `--root`), which override `skrapa.config.ts`.
 
 If your `package.json` has a `postbuild-skrapa` script, `dev` runs it after each rebuild. Use it for anything that has to happen on top of the build, like generating a sitemap.
 
@@ -155,6 +177,7 @@ export default {
 | `host`   | `localhost` | Interface the dev server binds to. Use `0.0.0.0` to reach it from other devices on the network            |
 | `origin` | `""`     | Public URL when a proxy or tunnel fronts the dev server, e.g. `https://dev.localhost`. See [Behind a proxy](#behind-a-proxy) |
 | `base`   | `/`      | Base URL the site is served from; injected as `<base href>`. Set to `/repo/` for GitHub Pages project sites |
+| `ignore` | `[]`     | URL globs the [link check](#every-reference-has-to-resolve) leaves alone, e.g. `['/api/**']`. As a flag, comma-separated |
 | `root`   | cwd      | Directory `input`, `output` and `assets` resolve against                                                    |
 
 `root` is really a CLI flag. Skrapa looks for `skrapa.config.ts` in the directory `--root` names (the working directory by default), so setting `root` *inside* that file moves where `input`, `output` and `assets` resolve, but not where the file itself was found.

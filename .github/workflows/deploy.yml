@@ -1,10 +1,29 @@
+# Publishes the docs site to GitHub Pages.
+#
+# No push trigger any more. Every commit that lands on main is deployed by
+# release.yml, at the end of its pipeline and from the tag it just cut, so the
+# site matches the version on the registry rather than whatever main had at the
+# time. Keeping a push trigger here as well would deploy the same commit twice,
+# once from each workflow, and the second one to finish would win.
+#
+# What is left is the two ways in that release.yml does not cover: a pull
+# request, and by hand.
 name: Deploy to GitHub Pages
 on:
-    push:
-        branches: ['main']
     pull_request:
         branches: ['main']
+    workflow_call:
+        inputs:
+            ref:
+                description: 'Commit, tag or branch to build the site from'
+                required: false
+                type: string
     workflow_dispatch:
+        inputs:
+            ref:
+                description: 'Commit, tag or branch to build the site from'
+                required: false
+                type: string
 
 permissions:
     contents: read
@@ -13,10 +32,6 @@ permissions:
 jobs:
     deploy:
         name: Deploy
-        if: >-
-            github.event_name == 'workflow_dispatch' ||
-            github.event_name == 'pull_request' ||
-            startsWith(github.event.head_commit.message, 'deploy:')
         concurrency:
             group: 'deploy-to-github-pages'
             cancel-in-progress: true
@@ -27,6 +42,10 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v7
+              with:
+                  # The tag when release.yml calls this, the event's own ref
+                  # otherwise.
+                  ref: ${{ inputs.ref || github.ref }}
             - name: Setup Node
               uses: actions/setup-node@v6
               with:

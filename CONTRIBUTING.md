@@ -22,7 +22,18 @@ Skrapa is self-hosted: its own docs site (`src/`) is built with the Skrapa CLI (
 | `npm run test:e2e` | End-to-end test (`src/scripts/test.ts`): scaffolds a fresh project from `template/` into `.tmp/` (reusing whatever `skrapa` is currently linked, so run `build` or `dev` first if `.tmp` or the link is stale), starts its dev server on a fixed port, and verifies the site, including that the `about/` page picks up its own `index.html`/CSS/`client.ts` instead of the root template's. Leaves the dev server running on completion so the scaffolded site can be poked at manually. |
 | `npm run lint` / `lint:fix` / `lint:css` | ESLint (with `eslint-plugin-prettier`, so it flags and `--fix`es formatting too) and Stylelint for CSS. Prettier otherwise runs on save; there is no standalone `format` script. |
 | `npm run clean` | Removes all build output (`dist`, `bin`, `.tmp`, `.skrapa`) from the repo and `template/`. |
-| `npm run release` | Rebuilds the CLI and docs site (`build`), then runs `commit-and-tag-version`, pushes tags, and publishes to npm. |
+| `npm run release` | Runs `commit-and-tag-version` (version bump + CHANGELOG + commit + tag), rebuilds, and pushes with `--follow-tags`. It does **not** publish, and you should not normally run it: `.github/workflows/release.yml` runs it for every commit that lands on `main`, then publishes that tag to npm and deploys the site from it. |
+
+## Releasing
+
+Push to `main`. `release.yml` lints, tests and builds, cuts the version from your conventional commits, pushes the tag, publishes it to npm, and deploys the docs site from that tag. Each step runs only if the one before it passed, so a failing build never becomes a version and a version that never reached the registry never becomes a deploy.
+
+Publishing uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) over OIDC, so there is no `NPM_TOKEN` anywhere. Two consequences worth knowing:
+
+- npm validates the OIDC claim of the *calling* workflow, not the one that runs `npm publish`, and allows one trusted publisher per package. The publisher is configured against `release.yml`, which is why `publish.yml` is `workflow_call`-only: a run starting anywhere else could not authenticate.
+- `npm publish` from a laptop is refused by a `prepublishOnly` guard (`src/scripts/publish-guard.ts`), since it would publish a working tree under a version with no tag behind it. `SKRAPA_LOCAL_PUBLISH=1` overrides it for a registry outage.
+
+To publish a tag that already exists (a run that failed for a reason unrelated to the code), run the **Release** workflow from the Actions tab with its `tag` input filled in: it skips cutting a new version and publishes that one.
 
 ## Notes for the CLI itself
 

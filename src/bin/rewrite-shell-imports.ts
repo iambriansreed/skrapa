@@ -18,8 +18,9 @@ import type { Emitted, EmittedPaths } from './output-paths';
 export const ATTR = `[^\\s"'>/=]+(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s"'>\`]+))?`;
 
 /**
- * The resolved directories the rewriters below read from and write to, plus
- * where to note down what they wrote.
+ * The resolved directories the rewriters below read from and write to, the base
+ * path every URL they write is served under, and where to note down what they
+ * wrote.
  */
 export type RewriteDirs = {
     /** Absolute input dir, where the source `index.html` and CSS live. */
@@ -30,6 +31,16 @@ export type RewriteDirs = {
     assets: string;
     /** Absolute compiled-JS dir (`.skrapa/<input>`), for client bundles. */
     compiled: string;
+    /**
+     * The site's base path, always slash-terminated (`'/'`, `'/repo/'`).
+     *
+     * Every path written below is root-relative, and `<base href>` governs
+     * relative URLs only, so the base has to be part of the path itself.
+     * Without it a project site under `/repo/` gets `<script src="/client.js">`,
+     * which is a request to the domain root and a 404 on the deployed site
+     * while working perfectly against a dev server rooted at `/`.
+     */
+    base: string;
     /**
      * Where every emitted file is recorded, so the rules in output-paths.ts
      * can be checked against it before anything is copied over the output.
@@ -124,6 +135,8 @@ const CSS_LINK_RE = /\srel\s*=\s*(["'])stylesheet\1/i;
  * - Emitted differently, and completely so: a script is bundled out of the
  *   compiled tree into a new `.js`; a stylesheet is copied from the input
  *   tree byte-for-byte.
+ * - Written back the same way: as `<base><output path>`, so the tag names the
+ *   URL the file is actually served at under a subpath deploy.
  * @param html - the HTML to rewrite: a whole shell, or a page body before it
  *   is spliced into one
  * @param sourceDir - the directory the HTML was authored in, as a
@@ -131,8 +144,9 @@ const CSS_LINK_RE = /\srel\s*=\s*(["'])stylesheet\1/i;
  *   `'blog/post'` for a nested page). Relative `src`/`href` paths resolve
  *   against it, which is what makes `./style.css` mean "next to the file that
  *   wrote this tag" whether that file is a shell or a page's JSX.
- * @param dirs - the four absolute directories the rewrite reads from and
- *   writes to; see {@link RewriteDirs} for what each one is
+ * @param dirs - the absolute directories the rewrite reads from and writes to,
+ *   plus the base every path it writes is prefixed with; see
+ *   {@link RewriteDirs} for what each one is
  * @param referencedIn - the path to show as the source of a bad `href` in the
  *   "stylesheet not found" warning. Defaults to the shell at
  *   `<sourceDir>/index.html`, which is right for every shell pass; a
@@ -177,9 +191,11 @@ export function rewriteShellImports(
             : path.posix.normalize(path.posix.join(sourceDir, ref));
 
         // Rewrites only the one attribute; every other one on the tag, and the
-        // tag's own shape (`/>` or a closing tag), survives as authored.
+        // tag's own shape (`/>` or a closing tag), survives as authored. The
+        // base is written into the path rather than left to the injected
+        // `<base href>`, which governs relative URLs and not this one.
         const withResolvedPath = (to: string) =>
-            tag.replace(attr, ` ${name}=${quote}/${to}${quote}`);
+            tag.replace(attr, ` ${name}=${quote}${dirs.base}${to}${quote}`);
 
         if (isScript) {
             const outId = rel.replace(/\.tsx?$/, '.js');
@@ -197,13 +213,16 @@ export function rewriteShellImports(
             return withResolvedPath(outId);
         }
 
-        // A root-relative stylesheet is already pointing where it will end up,
-        // so it is only ever copied, never rewritten. It comes either from the
-        // assets dir, which is copied to the output root wholesale, or from the
-        // root of the input dir, which nothing else would carry across.
+        // A root-relative stylesheet is already pointing at the output path it
+        // will end up on, so it is only ever copied, never resolved anywhere
+        // else. It comes either from the assets dir, which is copied to the
+        // output root wholesale, or from the root of the input dir, which
+        // nothing else would carry across. The href is still rewritten, since
+        // the path it names is below the base and the href as authored is not.
+        // At the default base that rewrite puts back exactly what was there.
         if (ref.startsWith('/')) {
             const assetPath = dirs.assets && path.join(dirs.assets, rel);
-            if (assetPath && fs.existsSync(assetPath)) return tag;
+            if (assetPath && fs.existsSync(assetPath)) return withResolvedPath(rel);
 
             const inputPath = path.join(dirs.input, rel);
             if (fs.existsSync(inputPath)) {
@@ -213,7 +232,7 @@ export function rewriteShellImports(
                     { kind: 'stylesheet', sources: [inputPath] },
                     (to) => fs.copyFileSync(inputPath, to)
                 );
-                return tag;
+                return withResolvedPath(rel);
             }
 
             // Only name the assets dir among the places checked when there is

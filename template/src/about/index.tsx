@@ -68,7 +68,7 @@ export function Page(): Skrapa.Page {
                     </ul>
                 </div>
                 <p class="sub">
-                    <a class="back" href="/">
+                    <a class="back" href="./">
                         ← Back home
                     </a>
                 </p>

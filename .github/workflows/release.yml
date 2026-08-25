@@ -1,0 +1,122 @@
+# The whole pipeline for a commit that lands on main: cut a release, publish it
+# to npm, deploy the site from it, in that order and each only if the one
+# before it passed.
+#
+# This is the only entry point. npm's trusted publisher is configured against
+# *this* filename, not publish.yml's, because npm validates the OIDC claim of
+# the calling workflow rather than the one that runs `npm publish`. Only one
+# trusted publisher is allowed per package, so a second way in could not
+# authenticate even if it existed; publish.yml is callable and nothing else.
+#
+# Two loops have to be closed, because `commit-and-tag-version` commits the
+# version bump to main, which is itself a push to main:
+#
+#   - GitHub does not start workflow runs from pushes made with the
+#     repository's GITHUB_TOKEN, which is what the release step pushes with.
+#   - That rule is one settings change away from not applying (a PAT, a deploy
+#     key), so the release step also skips a commit that is already a release
+#     commit. Publishing still runs, which is what makes a release cut by hand
+#     with `npm run release` reach the registry too.
+name: Release
+
+on:
+    push:
+        branches: ['main']
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: 'Existing tag to publish and deploy (e.g. v0.7.0). Leave empty to cut a new release.'
+                required: false
+                type: string
+
+permissions:
+    contents: write
+
+# One at a time. Two runs bumping the version at once produce two tags for one
+# line of history, and the loser pushes onto a main that has moved.
+concurrency:
+    group: 'release'
+    cancel-in-progress: false
+
+jobs:
+    release:
+        name: Release
+        runs-on: ubuntu-latest
+        outputs:
+            tag: ${{ steps.version.outputs.tag }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+              with:
+                  ref: ${{ inputs.tag || github.ref }}
+                  # Full history and tags: the changelog is written from the
+                  # commits since the last tag, and a shallow clone has neither.
+                  fetch-depth: 0
+
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: '24'
+
+            - name: Install
+              run: npm ci
+
+            # Before the version is cut, not after. `npm run release` commits
+            # and tags on its first command, so a failure found later leaves a
+            # release commit for something that does not work.
+            - name: Lint
+              run: npm run lint
+
+            - name: Unit tests
+              run: npm run test:unit
+
+            - name: Build
+              run: npm run build
+
+            - name: Identify as the actions bot
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            # Skipped when there is nothing to cut: a re-run against a tag that
+            # already exists, or a release commit that was pushed from a laptop
+            # and only needs publishing. Both then fall through to the version
+            # step below, which reads what is already there.
+            #
+            # The same script that cuts a release by hand, so there is one
+            # definition of what a release is: version, changelog, commit, tag,
+            # push.
+            - name: Cut the release
+              if: ${{ !inputs.tag && !startsWith(github.event.head_commit.message, 'chore(release):') }}
+              run: npm run release
+
+            - name: Read the version to publish
+              id: version
+              run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+    publish:
+        name: Publish
+        needs: release
+        permissions:
+            contents: read
+            # npm mints its publish credential from this. Granted here because
+            # a called workflow runs with the caller's permissions, and npm
+            # requires it on both.
+            id-token: write
+        uses: ./.github/workflows/publish.yml
+        with:
+            tag: ${{ needs.release.outputs.tag }}
+
+    deploy:
+        name: Deploy
+        # Both, so the site only goes out for a version that reached the
+        # registry: a site advertising a version nobody can install is worse
+        # than a site one release behind.
+        needs: [release, publish]
+        permissions:
+            contents: read
+            pages: write
+            id-token: write
+        uses: ./.github/workflows/deploy.yml
+        with:
+            ref: ${{ needs.release.outputs.tag }}

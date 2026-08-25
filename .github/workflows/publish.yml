@@ -1,0 +1,82 @@
+# Publishes one version tag to npm. Called by release.yml and by nothing else.
+#
+# Deliberately not usable on its own. npm validates the OIDC claim of the
+# *calling* workflow rather than the one that runs `npm publish`, so a package
+# whose trusted publisher names release.yml cannot be published by a run that
+# starts here: a tag trigger or a dispatch button would look like a way to
+# publish and fail at the last step every time. To re-publish an existing tag,
+# run release.yml with its `tag` input.
+#
+# There is no NPM_TOKEN. npm mints a short-lived credential from the OIDC token
+# GitHub hands this workflow, which is why `id-token: write` is declared here as
+# well as in the caller: npm requires it on both.
+name: Publish to npm
+
+on:
+    workflow_call:
+        inputs:
+            tag:
+                description: 'Version tag to publish, e.g. v0.7.0'
+                required: true
+                type: string
+
+permissions:
+    contents: read
+    id-token: write
+
+jobs:
+    publish:
+        name: Publish
+        runs-on: ubuntu-latest
+        # Serialized, since two runs racing on the same version both fail and
+        # only one of them tells you why.
+        concurrency:
+            group: 'publish-to-npm'
+            cancel-in-progress: false
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+              with:
+                  ref: ${{ inputs.tag }}
+
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: '24'
+                  registry-url: 'https://registry.npmjs.org'
+
+            # Trusted publishing needs npm >= 11.5.1. Node 24 already ships a
+            # newer one, but the floor is a hard requirement and the failure it
+            # produces (a 404 on the package) says nothing about the version.
+            - name: Use an npm that can publish with OIDC
+              run: npm install -g npm@latest
+
+            - name: Install
+              run: npm ci
+
+            # The tag is what gets published under, and package.json is what
+            # decides the version: if they disagree, the tag is a lie about
+            # what is in the tarball.
+            - name: Check the tag matches package.json
+              run: |
+                  TAG="${{ inputs.tag }}"
+                  PKG="v$(node -p "require('./package.json').version")"
+                  if [ "$TAG" != "$PKG" ]; then
+                    echo "::error::tag $TAG does not match package.json $PKG"
+                    exit 1
+                  fi
+
+            - name: Lint
+              run: npm run lint
+
+            # The build runs again inside `npm publish` (prepack), so this is
+            # not the artifact: it is the gate. A build that fails its own
+            # output checks must not reach the registry.
+            - name: Unit tests and build
+              run: npm run test:unit && npm run build
+
+            # No token: npm reads the OIDC token from the permission above, and
+            # attaches provenance on its own because this is a public package
+            # in a public repo.
+            - name: Publish
+              run: npm publish

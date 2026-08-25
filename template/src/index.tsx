@@ -21,7 +21,7 @@ export function Page(): Skrapa.Page {
                     save to test live reload
                 </p>
                 <p class="sub">
-                    <a href="/about/">About Skrapa →</a>
+                    <a href="about/">About Skrapa →</a>
                 </p>
                 <p class="sub">
                     <a href="https://skrapa.iambrian.com" target="_blank" rel="noopener">

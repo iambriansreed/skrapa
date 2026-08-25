@@ -12,6 +12,7 @@
  *   - `--output <dir>`  build output dir (default `"dist"`)
  *   - `--assets <dir>`  static files copied as-is to the output (default `"assets"`)
  *   - `--base <path>`   base URL injected as `<base href>` (default `"/"`)
+ *   - `--ignore <globs>` comma-separated URL globs the link check skips (default none)
  *   - `--root <dir>`    dir the paths above resolve against (default cwd)
  */
 
@@ -20,11 +21,12 @@ import { tagParser } from './tag-parser';
 import { ATTR, rewriteShellImports, type RewriteDirs } from './rewrite-shell-imports';
 import {
     checkCopy,
-    checkEmitted,
     emittedPaths,
     formatProblem,
     writeManifest,
+    type Problem,
 } from './output-paths';
+import { checkLinks } from './link-check';
 import { loadConfig, positionalArgs } from './config';
 import { formatHtml } from './format-html';
 import { escapeText, isElement, renderAttrs, unescapeAttr } from './jsx';
@@ -215,13 +217,16 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
     const cfg = initContext(overrideConfig);
     const { directory, config, WORKING_DIR } = cfg;
 
-    // Pretty-print output HTML in dev mode only. The `dev` command covers the
-    // initial build the dev server runs directly, the `pretty` positional
-    // covers the rebuilds it triggers via a `skrapa build` subprocess (see
-    // cmd-dev.ts). Read as command + positionals, not a raw argv scan, so
-    // `build --output dev` is not mistaken for dev mode.
+    // Whether a dev server is what asked for this build. The `dev` command
+    // covers the initial build the dev server runs directly, the `pretty`
+    // positional covers the rebuilds it triggers via a `skrapa build`
+    // subprocess (see cmd-dev.ts). Read as command + positionals, not a raw
+    // argv scan, so `build --output dev` is not mistaken for dev mode.
     const markers = positionalArgs();
-    const pretty = process.argv[2] === 'dev' || markers.includes('pretty');
+    const devMode = process.argv[2] === 'dev' || markers.includes('pretty');
+
+    // Output HTML is pretty-printed for dev and left dense for a real build.
+    const pretty = devMode;
 
     // A rebuild triggered by the dev server, which leaves the assets already
     // in the output dir alone.
@@ -255,7 +260,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
 
     // The rewriters live at module scope (and are unit-tested there); this
     // is the directory set they need.
-    const dirs: RewriteDirs = { ...directory, compiled: compiledDir, emitted };
+    const dirs: RewriteDirs = { ...directory, compiled: compiledDir, emitted, base };
 
     // Find the index.html that serves as a page's template: the one in the
     // page's own directory, else the nearest ancestor up to the input root.
@@ -386,36 +391,46 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
     // a file rather than a value passed back.
     writeManifest(WORKING_DIR, emitted);
 
-    const hasAssets = Boolean(directory.assets) && fs.existsSync(directory.assets);
-    const problems = [
-        ...checkEmitted(emitted),
-        ...(hasAssets ? checkCopy(directory.assets, directory.output, emitted) : []),
-    ];
-
-    if (problems.length > 0) {
-        // Fail rather than warn: a silent overwrite is never intentional, and
-        // a warning in a CI log is exactly what gets missed. The exception is
-        // a dev rebuild, which never reaches the copy below, so a problem only
-        // that copy would cause is reported without taking a running dev
-        // server's updates down with it.
-        //
-        // Reported line by line because dev forwards a rebuild's warnings by
-        // picking out the yellow ones, and a single multi-line call colours
-        // only the first.
+    // Fail rather than warn: a silent overwrite is never intentional, and a
+    // warning in a CI log is exactly what gets missed. Two things are reported
+    // without failing, both because a dev server is already up and serving and
+    // taking its updates down helps nobody: a problem only the assets copy
+    // would cause, which a dev rebuild never reaches, and a broken reference,
+    // which mid-edit is usually a link to a file that is about to exist.
+    //
+    // Reported line by line because dev forwards a rebuild's warnings by
+    // picking out the yellow ones, and a single multi-line call colours only
+    // the first.
+    const report = (problems: Problem[]): boolean => {
         let fatal = false;
+
         for (const [index, problem] of problems.entries()) {
-            const blocks = !(skipAssets && problem.assetOnly);
+            const blocks = problem.rule === 'link' ? !devMode : !(skipAssets && problem.assetOnly);
             fatal ||= blocks;
-            const report = blocks ? log.error : log.warn;
-            if (index > 0) report('');
-            for (const line of formatProblem(problem).split('\n')) report(line);
+            const write = blocks ? log.error : log.warn;
+            if (index > 0) write('');
+            for (const line of formatProblem(problem).split('\n')) write(line);
         }
 
-        if (fatal) process.exit(1);
+        return fatal;
+    };
+
+    const hasAssets = Boolean(directory.assets) && fs.existsSync(directory.assets);
+
+    if (hasAssets && report(checkCopy(directory.assets, directory.output, emitted))) {
+        process.exit(1);
     }
 
     if (!skipAssets && hasAssets) {
         fs.cpSync(directory.assets, directory.output, { recursive: true });
+    }
+
+    // Last, and deliberately after the copy above: the check reads the output
+    // tree as the deployed site, and an asset that has not been copied yet is
+    // indistinguishable from one that does not exist. A dev rebuild skips the
+    // copy but is running against an output dir a full build already filled.
+    if (report(checkLinks(directory.output, config.base, config.ignore))) {
+        process.exit(1);
     }
 
     return cfg;

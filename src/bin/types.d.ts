@@ -24,6 +24,8 @@ declare global {
         origin: Skrapa.Origin;
         /** Normalized to always end in a slash, e.g. `"/"` or `"/repo/"`. */
         base: Skrapa.BasePath;
+        /** Trimmed, with the empty entries a `--ignore a,,b` would leave out. */
+        ignore: readonly string[];
         /** Always an absolute path. */
         root: string;
     };

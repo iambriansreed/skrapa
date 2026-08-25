@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.7.0](https://github.com/iambriansreed/skrapa/compare/v0.6.1...v0.7.0) (2026-08-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* a build fails on any local URL that does not resolve to
+an emitted file, and on a root-relative URL that omits a configured base.
+A project with `base` set needs its hand-written links to carry it or to
+be relative. src/About/ no longer fails a build on its own.
+
+### Features
+
+* link validation, base-aware output paths, release from CI ([270641b](https://github.com/iambriansreed/skrapa/commit/270641b402f34dfd631909b49de145f16d526e50))
+
 ## [0.6.1](https://github.com/iambriansreed/skrapa/compare/v0.6.0...v0.6.1) (2026-08-12)
 
 

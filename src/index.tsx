@@ -2,6 +2,8 @@ import { Logo } from './components/logo';
 import { TopNav } from './components/top-nav';
 import { CodeCard } from './components/code-card';
 import { Footer } from './components/footer';
+import { seo } from './components/seo';
+import { TAGLINE } from './site';
 
 // Deliberately line-for-line parallel with OUTPUT: each row sits at the same
 // height as the file it produces, so the mapping reads without a caption.
@@ -43,101 +45,115 @@ const DEPS = [
 const DEPS_MAX = Math.max(...DEPS.map((d) => d.count));
 
 export function Page(): Skrapa.Page {
-    return (
-        <>
-            <TopNav />
+    return {
+        ...seo({
+            path: '/',
+            title: 'Skrapa: Static Site Generator for TypeScript JSX',
+            description:
+                'Skrapa renders TypeScript JSX to static HTML at build time. One zero-dependency script run with npx: no React, no bundler config, nothing to install.',
+        }),
+        body: (
+            <>
+                <TopNav />
 
-            <header class="hero">
-                <Logo size={72} class="hero-mark" />
-                <h1>The static site generator for TypeScript JSX</h1>
-                <p class="lead">
-                    Skrapa renders TypeScript JSX to plain static HTML at build time. One script,
-                    run by <code>npx</code>, that never becomes a dependency of your project.
-                </p>
-                <pre class="cli">
-                    <code>npx skrapa</code>
-                </pre>
-                <a class="btn" href="/docs/">
-                    Get Started
-                </a>
-            </header>
-
-            <main>
-                <section class="pillars">
-                    <h2>What is Skrapa?</h2>
-                    <p class="section-lead">
-                        Skrapa is a static site generator for people who want JSX and TypeScript
-                        without adopting a toolchain to get them.
+                <header class="hero">
+                    <Logo size={72} class="hero-mark" />
+                    <h1>{TAGLINE}</h1>
+                    <p class="lead">
+                        Skrapa renders TypeScript JSX to plain static HTML at build time. One
+                        script, run by <code>npx</code>, that never becomes a dependency of your
+                        project.
                     </p>
-                    <div class="features">
-                        {PILLARS.map((p) => (
-                            <div class="feature">
-                                <h3>{p.name}</h3>
-                                <p>{p.body}</p>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+                    <pre class="cli">
+                        <code>npx skrapa</code>
+                    </pre>
+                    <a class="btn" href="/docs/">
+                        Get Started
+                    </a>
+                </header>
 
-                <section class="chart-section">
-                    <p class="eyebrow">Nothing to install</p>
-                    <h2>Packages added to your project</h2>
-                    <div class="chart">
-                        {DEPS.map((d) => (
-                            <div class="bar-row">
-                                <span class="bar-name">{d.name}</span>
-                                <div class="bar-track">
-                                    <div
-                                        class={
-                                            d.name === 'Skrapa' ? 'bar-fill is-ours' : 'bar-fill'
-                                        }
-                                        style={{ width: `${(d.count / DEPS_MAX) * 100}%` }}
-                                    ></div>
+                <main>
+                    <section class="pillars">
+                        <h2>What is Skrapa?</h2>
+                        <p class="section-lead">
+                            Skrapa is a static site generator for people who want JSX and TypeScript
+                            without adopting a toolchain to get them.
+                        </p>
+                        <div class="features">
+                            {PILLARS.map((p) => (
+                                <div class="feature">
+                                    <h3>{p.name}</h3>
+                                    <p>{p.body}</p>
                                 </div>
-                                <span class="bar-value">{d.count}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <p class="chart-note">
-                        Measured with <code>npm install --dry-run</code> in an empty project, August
-                        2026. Skrapa's one is <code>typescript</code>, the only install{' '}
-                        <code>skrapa init</code> adds. Skrapa itself runs from <code>npx</code> and
-                        is never installed at all. Requires <code>Node &gt;=24</code>.
-                    </p>
-                </section>
+                            ))}
+                        </div>
+                    </section>
 
-                <section class="routing">
-                    <p class="eyebrow">Nothing to configure</p>
-                    <h2>Every directory is a route</h2>
-                    <p class="section-lead">
-                        Any <code>index.tsx</code> that exports <code>Page</code> becomes a page at
-                        that path, and the <code>client.ts</code> beside it compiles to its own
-                        script and links itself.
-                    </p>
-                    <div class="demo-grid">
-                        <CodeCard name="src/" code={INPUT} />
-                        <span class="demo-arrow">→</span>
-                        <CodeCard name="dist/" code={OUTPUT} variant="out" />
-                    </div>
-                </section>
+                    <section class="chart-section">
+                        <p class="eyebrow">Nothing to install</p>
+                        <h2>Packages added to your project</h2>
+                        <div class="chart">
+                            {DEPS.map((d) => (
+                                <div class="bar-row">
+                                    <span class="bar-name">{d.name}</span>
+                                    <div class="bar-track">
+                                        <div
+                                            class={
+                                                d.name === 'Skrapa'
+                                                    ? 'bar-fill is-ours'
+                                                    : 'bar-fill'
+                                            }
+                                            style={{ width: `${(d.count / DEPS_MAX) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                    <span class="bar-value">{d.count}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <p class="chart-note">
+                            Measured with <code>npm install --dry-run</code> in an empty project,
+                            August 2026. Skrapa's one is <code>typescript</code>, the only install{' '}
+                            <code>skrapa init</code> adds. Skrapa itself runs from <code>npx</code>{' '}
+                            and is never installed at all. Requires <code>Node &gt;=24</code>.
+                        </p>
+                    </section>
 
-                <section class="why-not">
-                    <h2>Why not Vite or Astro?</h2>
-                    <p>
-                        Often you should. They're better tools for anything with a client-side
-                        component ecosystem, content collections, or a large opinionated team behind
-                        it. Skrapa is for the minimalist engineer with no appetite for a toolchain.
-                        It renders to static HTML at build time and keeps to its own idea of the
-                        essentials: file-based routing, JSX in TypeScript, and client-side JS
-                        compiled from TypeScript. The whole thing is one script you never install.{' '}
-                        <em>
-                            The longer answer is on the <a href="/about/">about page</a>.
-                        </em>
-                    </p>
-                </section>
-            </main>
+                    <section class="routing">
+                        <p class="eyebrow">Nothing to configure</p>
+                        <h2>Every directory is a route</h2>
+                        <p class="section-lead">
+                            Any <code>index.tsx</code> that exports <code>Page</code> becomes a page
+                            at that path, and the <code>client.ts</code> beside it compiles to its
+                            own script and links itself.
+                        </p>
+                        <div class="demo-grid">
+                            <CodeCard name="src/" code={INPUT} />
+                            <span class="demo-arrow" aria-hidden="true">
+                                →
+                            </span>
+                            <CodeCard name="dist/" code={OUTPUT} variant="out" />
+                        </div>
+                    </section>
 
-            <Footer />
-        </>
-    );
+                    <section class="why-not">
+                        <h2>Why not Vite or Astro?</h2>
+                        <p>
+                            Often you should. They're better tools for anything with a client-side
+                            component ecosystem, content collections, or a large opinionated team
+                            behind it. Skrapa is for the minimalist engineer with no appetite for a
+                            toolchain. It renders to static HTML at build time and keeps to its own
+                            idea of the essentials: file-based routing, JSX in TypeScript, and
+                            client-side JS compiled from TypeScript. The whole thing is one script
+                            you never install.{' '}
+                            <em>
+                                The longer answer is on the <a href="/about/">about page</a>.
+                            </em>
+                        </p>
+                    </section>
+                </main>
+
+                <Footer />
+            </>
+        ),
+    };
 }

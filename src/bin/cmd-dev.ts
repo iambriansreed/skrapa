@@ -16,7 +16,7 @@ import { exec } from 'node:child_process';
 import path from 'node:path';
 import { build } from './cmd-build';
 import { checkCopy, formatProblem, readManifest } from './output-paths';
-import { color, log } from './utils';
+import { color, exe, log } from './utils';
 import type { Socket } from 'node:net';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -45,14 +45,44 @@ export function rebuildFlags(config: ResolvedConfig): string {
     return BUILD_KEYS.map((key) => ` --${key} ${JSON.stringify(String(config[key]))}`).join('');
 }
 
+/**
+ * The command that runs the project's `postbuild-skrapa` script, or `null`
+ * when there is no package.json to run it from. Dev runs it from the project
+ * root after its first build and after every rebuild.
+ *
+ * `npm run --if-present` tolerates a missing *script*, but still errors when
+ * there is no package.json at all, and that error would fail every build in a
+ * directory that was never `skrapa init`-ed. So the file is checked once, here.
+ * @param root - the project root, which is also where the command has to run
+ */
+export function postbuildCommand(root: string): string | null {
+    return fs.existsSync(path.join(root, 'package.json'))
+        ? 'npm run --if-present postbuild-skrapa'
+        : null;
+}
+
 // ============================================================================
 export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
-    log.info('\nDev mode starting...\n');
+    log.info('\nDev mode starting...');
 
     const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
 
     // Initial build
     const { directory, config, WORKING_DIR } = build(overrideConfig);
+
+    // After this first build too, not only after rebuilds: the build has just
+    // emptied the output dir, so whatever the hook writes there (a sitemap, a
+    // feed) would otherwise be missing until the first save. Synchronous, so
+    // it lands before the server starts answering. A failure is reported and
+    // the build served without it, the same as a failing rebuild.
+    const postbuild = postbuildCommand(config.root);
+    if (postbuild) {
+        try {
+            exe(postbuild, { cwd: config.root });
+        } catch {
+            log.error('postbuild-skrapa failed. Serving the build without it.');
+        }
+    }
 
     // The URL to point a browser at, which is not always where we bind: with a
     // proxy or tunnel in front (`origin`), the site is reached somewhere else,
@@ -287,13 +317,6 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
 
     let buildTimer: NodeJS.Timeout | null = null;
 
-    // `npm run --if-present` tolerates a missing *script*, but still errors
-    // when there is no package.json at all, and that error would fail every
-    // rebuild in a directory that was never `skrapa init`-ed. Decide once.
-    const postbuild = fs.existsSync(path.join(config.root, 'package.json'))
-        ? ' && npm run --if-present postbuild-skrapa'
-        : '';
-
     // Re-run the very binary this process started from, not `npx skrapa`:
     // same guaranteed version, and it shaves npx's package resolution
     // (~170ms of a ~590ms rebuild, measured) off every save.
@@ -309,9 +332,10 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
         buildTimer = setTimeout(() => {
             // cwd is the project root, not wherever dev was started, so the
             // `postbuild-skrapa` script runs against the project's own
-            // package.json (the one checked just above).
+            // package.json (the one postbuildCommand checked).
             const options = { cwd: config.root };
-            const command = `${selfInvoke} build skip-assets pretty${buildFlags}${postbuild}`;
+            const then = postbuild ? ` && ${postbuild}` : '';
+            const command = `${selfInvoke} build skip-assets pretty${buildFlags}${then}`;
             exec(command, options, (error, stdout, stderr) => {
                 if (error) {
                     // tsc reports its diagnostics on *stdout*, and exec's

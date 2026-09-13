@@ -1,3 +1,5 @@
+// Hidden from screen readers: every use sits beside the name as text, so
+// announcing the mark as well would only repeat it.
 export function Logo(props: { size?: number; class?: string }) {
     const size = props.size ?? 42;
     return (
@@ -7,7 +9,7 @@ export function Logo(props: { size?: number; class?: string }) {
             viewBox="0 0 200 200"
             width={size}
             height={size}
-            aria-label="Skrapa Logo"
+            aria-hidden="true"
         >
             <line
                 x1="135"

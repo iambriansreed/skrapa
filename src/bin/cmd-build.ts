@@ -39,7 +39,7 @@ import fs from 'node:fs';
  * It returns the resolved directory paths, the final config, and the working directory for temporary build files.
  */
 function initContext(overrideConfig?: Skrapa.Config): InitContext {
-    console.log(`${versionBanner()}\n`);
+    console.log(versionBanner());
 
     // Shared precedence (defaults < config file < CLI flags < overrideConfig);
     // see config.ts. `config.root` comes back already resolved to absolute.

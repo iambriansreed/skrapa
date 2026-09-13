@@ -19,7 +19,7 @@ import { loadConfig } from './config';
 import fs from 'node:fs';
 
 export async function init(overrideConfig?: Skrapa.Config): Promise<void> {
-    console.log(`\n${versionBanner()}`);
+    console.log(versionBanner());
 
     log.gray('Initializing...\n');
 

@@ -200,7 +200,7 @@ export function collectTargets(
  * @param overrideConfig
  */
 export function fix(overrideConfig?: Skrapa.Config): void {
-    console.log(`\n${versionBanner()}`);
+    console.log(versionBanner());
 
     // Same config precedence as the other commands (see config.ts). A project
     // still on skrapa.config.json has no file for this to read, which is fine:

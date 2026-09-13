@@ -39,18 +39,58 @@ export const log = {
 };
 
 /**
+ * Whether this process was started through a global `npm link`, the kind
+ * `npm unlink -g skrapa` removes.
+ *
+ * npm links a bin by putting a symlink in its global bin dir. Node follows that
+ * symlink for `__dirname` but leaves `process.argv[1]` as invoked, so an entry
+ * that is itself a symlink is the tell. Running a checkout's `bin/index.js` by
+ * path (`npm run build`, CI) is not a link. Neither is a project-local
+ * `npm link skrapa`, whose symlink sits in that project's `node_modules/.bin`,
+ * out of reach of the global unlink.
+ * @param invokedAs - the entry path as invoked, normally `process.argv[1]`
+ */
+export function isGlobalLink(invokedAs: string | undefined): boolean {
+    if (!invokedAs) return false;
+    const entry = path.resolve(invokedAs);
+    if (entry.split(path.sep).includes('node_modules')) return false;
+    try {
+        return fs.lstatSync(entry).isSymbolicLink();
+    } catch {
+        return false;
+    }
+}
+
+/**
  * The `Skrapa v0.0.0` line every command greets you with, tagged with the
- * source checkout when this is a linked bin.
+ * source checkout when this is a dev bin, plus the way back to the published
+ * package when that dev bin was reached through a global link.
  *
  * A linked skrapa is indistinguishable from the published one once it is in
  * another project's node_modules, so a stale link (or the wrong clone of two)
  * looks exactly like a released bug. Naming the directory it came from is the
  * cheapest way to catch that at the top of the output.
+ *
+ * The unlink hint is left out when there is no link to remove (see
+ * {@link isGlobalLink}). It reads sentence-first so it stays unambiguous once
+ * the color is stripped (piped output, a CI log), where a trailing explanation
+ * would run straight into the command. Only the command itself is cyan, so
+ * selecting the colored run copies something runnable and nothing else.
+ *
+ * Padded with one blank line above and one below, the same for every command
+ * and every kind of bin, so callers print it as is.
  */
 export function versionBanner(): string {
-    const banner = `${color.cyan}Skrapa${color.reset} ${color.gray}v${VERSION}${color.reset}`;
-    if (!IS_DEV_BIN) return banner;
-    return `${banner} ${color.yellow}(dev bin → ${PKG_ROOT})${color.reset}`;
+    const lines = [`${color.cyan}Skrapa${color.reset} ${color.gray}v${VERSION}${color.reset}`];
+    if (IS_DEV_BIN) {
+        lines[0] += ` ${color.yellow}(dev bin → ${PKG_ROOT})${color.reset}`;
+        if (isGlobalLink(process.argv[1])) {
+            lines.push(
+                `${color.gray}To use the published version: $ ${color.cyan}npm unlink -g skrapa${color.reset}`
+            );
+        }
+    }
+    return `\n${lines.join('\n')}\n`;
 }
 
 // Run a command with its output inherited. Pass `cwd` rather than building a

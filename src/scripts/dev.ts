@@ -41,6 +41,13 @@ if (!testMode) {
 process.on('SIGINT', async () => {
     log.gray('\nShutting down dev servers...');
     await Promise.all([rootDev ? stopDev(rootDev) : Promise.resolve(), stopDev(tmpDev)]);
+    // Undo linkBin(), so `npx skrapa` in other projects goes back to the
+    // published package. Best effort: a failure here must not stop the exit.
+    try {
+        execSync('npm unlink -g skrapa');
+    } catch {
+        log.warn('Could not remove the global skrapa link. Run `npm unlink -g skrapa` by hand.');
+    }
     process.exit(0);
 });
 

@@ -32,7 +32,8 @@ export function buildBin() {
 // it, since they run `npx skrapa` in the repo root and in the scaffolded .tmp
 // project. Deliberately NOT part of buildBin(): a build that depends on a global
 // symlink means CI silently falls back to the *published* skrapa when the link
-// isn't on PATH, producing a green build of the wrong source.
+// isn't on PATH, producing a green build of the wrong source. dev.ts removes
+// the link again on SIGINT.
 export function linkBin() {
     execSync(`npm link`, { stdio: 'inherit', cwd: ROOT_DIR });
 }

@@ -2,6 +2,7 @@ import { TopNav } from '../components/top-nav';
 import { Footer } from '../components/footer';
 import { CodeCard } from '../components/code-card';
 import { DataTable } from '../components/data-table';
+import { seo } from '../components/seo';
 
 const PAGE_INPUT = `export function Page(): Skrapa.Page {
   return {
@@ -281,7 +282,15 @@ const TOC = [
 
 export function Page(): Skrapa.Page {
     return {
-        title: 'Docs - Skrapa',
+        ...seo({
+            path: '/docs/',
+            title: 'Skrapa Docs: Commands, Routing, Configuration, Deploy',
+            description:
+                'Skrapa docs: init, dev and build commands, file-based routing from index.tsx, the HTML shell and Page type, client scripts, config, and deploys.',
+            type: 'article',
+            schemaType: 'TechArticle',
+            breadcrumb: 'Docs',
+        }),
         body: (
             <>
                 <nav class="docs-toc" aria-label="On this page">
@@ -294,7 +303,7 @@ export function Page(): Skrapa.Page {
                 <TopNav />
                 <main>
                     <article class="prose docs">
-                        <h1>Docs</h1>
+                        <h1>Skrapa Documentation</h1>
                         <p class="lead">
                             One command scaffolds a working project. This page walks through what{' '}
                             <code>init</code> drops on disk, then how those files fit together to
@@ -325,7 +334,7 @@ export function Page(): Skrapa.Page {
 
                         <h2 id="commands">Commands</h2>
                         <p>
-                            Four commands, each also runnable through an <code>npm</code> script.
+                            Five commands, each also runnable through an <code>npm</code> script.
                             The config flags (<code>--input</code>, <code>--root</code>, and the
                             rest from <a href="/docs/#config">Configuration</a>) override{' '}
                             <code>skrapa.config.ts</code> for any command.
@@ -422,7 +431,9 @@ export function Page(): Skrapa.Page {
                         </p>
                         <div class="demo-grid">
                             <CodeCard name="src/about/index.tsx" code={PAGE_INPUT} />
-                            <span class="demo-arrow">→</span>
+                            <span class="demo-arrow" aria-hidden="true">
+                                →
+                            </span>
                             <CodeCard
                                 name="dist/about/index.html"
                                 code={PAGE_OUTPUT}

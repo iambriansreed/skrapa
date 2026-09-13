@@ -142,7 +142,7 @@ Per-command flags:
 
 Every command accepts the [config](#configuration) flags (`--input`, `--output`, `--assets`, `--port`, `--host`, `--origin`, `--base`, `--ignore`, `--root`), which override `skrapa.config.ts`.
 
-If your `package.json` has a `postbuild-skrapa` script, `dev` runs it after each rebuild. Use it for anything that has to happen on top of the build, like generating a sitemap.
+If your `package.json` has a `postbuild-skrapa` script, `dev` runs it from the project root after its first build and after every rebuild. Use it for anything that has to happen on top of the build, like generating a sitemap.
 
 ### Upgrading an older project
 

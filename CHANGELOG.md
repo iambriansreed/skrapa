@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.8.0](https://github.com/iambriansreed/skrapa/compare/v0.7.1...v0.8.0) (2026-09-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* settings are read only from a required "skrapa" key in
+the tsconfig.json of the directory skrapa runs in, and a skrapa.config.ts
+or skrapa.config.json stops every command but fix. input, root, --input
+and --root are removed. ignore and --ignore are now linkCheckIgnore and
+--linkCheckIgnore, and every pattern has to start with /.
+compilerOptions.outDir and rootDir are ignored, and a config flag given no
+value is an error. To upgrade, run `npx skrapa fix` beside the old config,
+then run skrapa from the directory holding tsconfig.json (src/ for a
+project whose pages lived there).
+
+### Features
+
+* config in tsconfig.json, with a skrapa root and a project root ([8d38045](https://github.com/iambriansreed/skrapa/commit/8d380454849e20558cec564c5e04ab392ccb4dd4))
+
 ## [0.7.1](https://github.com/iambriansreed/skrapa/compare/v0.7.0...v0.7.1) (2026-09-13)
 
 

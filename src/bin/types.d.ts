@@ -6,17 +6,19 @@
 declare global {
     /**
      * A {@link Skrapa.Config} after the whole precedence chain has been applied
-     * (defaults < config file < CLI flags < programmatic overrides) and every
-     * value normalized. This is what commands actually run on.
+     * (defaults < tsconfig.json `skrapa` key < CLI flags < programmatic
+     * overrides) and every value validated. This is what commands actually
+     * run on.
      *
      * The differences from the authoring shape are the point of the type:
-     * nothing is optional, `port` has been through `Number()` and validated, and
-     * `base` and `root` carry their normalized forms. It stays internal because
+     * nothing is optional, `port` has been validated as a number, and `base`
+     * and `origin` carry their normalized forms. It stays internal because
      * nobody writes one; `loadConfig` is the only thing that produces it.
      */
     type ResolvedConfig = {
-        input: string;
+        /** Relative to the skrapa root, as written. */
         output: string;
+        /** Relative to the skrapa root, as written. */
         assets: string;
         /** Validated integer in the range 1-65535. */
         port: number;
@@ -24,18 +26,22 @@ declare global {
         origin: Skrapa.Origin;
         /** Normalized to always end in a slash, e.g. `"/"` or `"/repo/"`. */
         base: Skrapa.BasePath;
-        /** Trimmed, with the empty entries a `--ignore a,,b` would leave out. */
-        ignore: readonly string[];
-        /** Always an absolute path. */
-        root: string;
+        /** Trimmed, empty entries dropped, every one starting with `/`. */
+        linkCheckIgnore: readonly string[];
+        /** Relative to the skrapa root, as written. */
+        projectRoot: string;
     };
 
     /** The config keys a `--flag value` pair on the command line can set. */
     type ConfigKey = keyof Skrapa.Config;
 
     type InitContext = {
+        /** All absolute. */
         directory: {
-            input: string;
+            /** The dir holding tsconfig.json, where the pages live. */
+            skrapaRoot: string;
+            /** Where .github, .gitignore, package.json and skrapa.d.ts live. */
+            projectRoot: string;
             output: string;
             assets: string;
         };
@@ -47,8 +53,8 @@ declare global {
      * The shared signature of every skrapa CLI command (`init` | `build` |
      * `dev` | `page` | `fix`), dispatched by src/bin/index.ts. Each accepts an optional
      * {@link Skrapa.Config} applied at the highest precedence in the chain
-     * `loadConfig` resolves (DEFAULT_CONFIG < config file < CLI flags <
-     * overrides). The return varies by command, so it is a type parameter
+     * `loadConfig` resolves (DEFAULT_CONFIG < tsconfig.json `skrapa` key <
+     * CLI flags < overrides). The return varies by command, so it is a type parameter
      * (`Promise<void>` for the async commands, `InitContext` for `build`,
      * `void` for `page` and `fix`).
      */

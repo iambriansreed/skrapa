@@ -6,17 +6,16 @@
  * its nearest `index.html` shell, its client scripts and stylesheets are
  * bundled/copied, and the assets dir is copied across. Returns the resolved
  * {@link InitContext} (which `dev` reuses).
- * @param overrideConfig - {@link Skrapa.Config} applied on top of
- *   `skrapa.config.ts` and the CLI flags below (all optional):
- *   - `--input <dir>`   source dir with index.html/index.tsx/client.ts (default `"src"`)
+ * @param overrideConfig - {@link Skrapa.Config} applied on top of the
+ *   `skrapa` key in tsconfig.json and the CLI flags below (all optional):
  *   - `--output <dir>`  build output dir (default `"dist"`)
  *   - `--assets <dir>`  static files copied as-is to the output (default `"assets"`)
  *   - `--base <path>`   base URL injected as `<base href>` (default `"/"`)
- *   - `--ignore <globs>` comma-separated URL globs the link check skips (default none)
- *   - `--root <dir>`    dir the paths above resolve against (default cwd)
+ *   - `--linkCheckIgnore <patterns>`  comma-separated URL paths the link check skips (default none)
+ *   - `--projectRoot <dir>`  where skrapa.d.ts is synced to (default `"."`)
  */
 
-import { CWD_DIR, DEFAULT_CONFIG, exe, log, versionBanner } from './utils';
+import { CWD_DIR, DEFAULT_CONFIG, exe, isSkippedPath, log, versionBanner } from './utils';
 import { tagParser } from './tag-parser';
 import { ATTR, rewriteShellImports, type RewriteDirs } from './rewrite-shell-imports';
 import {
@@ -27,7 +26,7 @@ import {
     type Problem,
 } from './output-paths';
 import { checkLinks } from './link-check';
-import { loadConfig, positionalArgs } from './config';
+import { CONFIG_FILE, loadConfig, positionalArgs } from './config';
 import { formatHtml } from './format-html';
 import { escapeText, isElement, renderAttrs, unescapeAttr } from './jsx';
 import path from 'node:path';
@@ -41,21 +40,22 @@ import fs from 'node:fs';
 function initContext(overrideConfig?: Skrapa.Config): InitContext {
     console.log(versionBanner());
 
-    // Shared precedence (defaults < config file < CLI flags < overrideConfig);
-    // see config.ts. `config.root` comes back already resolved to absolute.
-    const { config, configPath, fileExists } = loadConfig(overrideConfig);
+    // Shared precedence (defaults < tsconfig.json `skrapa` < CLI flags <
+    // overrideConfig); see config.ts. First, and before anything is written:
+    // a config with any problem in it stops the build here.
+    const { config, skrapaRoot } = loadConfig(overrideConfig);
+    log.success(`Loaded config from ${CONFIG_FILE}`);
 
-    if (fileExists) {
-        log.success(`Loaded config from: ${path.relative(CWD_DIR, configPath)}`);
-    } else {
-        log.gray(`No config file found, using defaults: ${JSON.stringify(config, null, 2)}`);
-    }
+    // Where .github, .gitignore and package.json live, which is not always the
+    // skrapa root: the template keeps its pages in src/, one level down.
+    const projectRoot = path.resolve(skrapaRoot, config.projectRoot);
 
-    // Sync the project's skrapa.d.ts with the type declarations bundled in
-    // the installed skrapa package.
+    // Sync the project's skrapa.d.ts with the type declarations bundled in the
+    // installed skrapa package. It belongs to the project root, so a
+    // tsconfig.json below it names it in "include" (e.g. "../skrapa.d.ts").
     {
         const sourcePath = path.join(__dirname, '../skrapa.d.ts');
-        const destPath = path.join(config.root, 'skrapa.d.ts');
+        const destPath = path.join(projectRoot, 'skrapa.d.ts');
         const sourceContent = fs.readFileSync(sourcePath, 'utf-8');
         const destContent = fs.existsSync(destPath) ? fs.readFileSync(destPath, 'utf-8') : null;
 
@@ -65,26 +65,18 @@ function initContext(overrideConfig?: Skrapa.Config): InitContext {
         }
     }
 
-    // Never cleaned up on purpose: .skrapa holds tsc's incremental state
-    // (tsconfig.tsbuildinfo, `composite: true` implies `incremental`), which
-    // is what lets every rebuild after the first skip unchanged files.
-    const WORKING_DIR = path.join(config.root, '.skrapa');
-    const input = config.input ? path.resolve(config.root, config.input) : '';
-
-    const output = config.output ? path.resolve(config.root, config.output) : '';
-
-    const assets = config.assets ? path.resolve(config.root, config.assets) : '';
-
-    if (!fs.existsSync(input)) {
-        log.error(`Error: input directory does not exist at ${input}`);
-        process.exit(1);
-    }
+    // Scratch space: tsc's output, its incremental state (tsconfig.tsbuildinfo,
+    // since `composite: true` implies `incremental`) and the emitted-files
+    // manifest. It lasts as long as the process that owns it (see build()).
+    const WORKING_DIR = path.join(skrapaRoot, '.skrapa');
+    const output = path.resolve(skrapaRoot, config.output);
+    const assets = path.resolve(skrapaRoot, config.assets);
 
     if (!fs.existsSync(output)) {
         fs.mkdirSync(output, { recursive: true });
     }
 
-    if (!assets || !fs.existsSync(assets)) {
+    if (!fs.existsSync(assets)) {
         if (config.assets !== DEFAULT_CONFIG.assets) {
             log.error(`Error: assets directory does not exist at ${assets}`);
             process.exit(1);
@@ -93,7 +85,7 @@ function initContext(overrideConfig?: Skrapa.Config): InitContext {
         log.gray(`Assets directory (${assets}) does not exist. Continuing without copying assets.`);
     }
 
-    return { directory: { input, output, assets }, config, WORKING_DIR };
+    return { directory: { skrapaRoot, projectRoot, output, assets }, config, WORKING_DIR };
 }
 
 /**
@@ -104,21 +96,21 @@ function initContext(overrideConfig?: Skrapa.Config): InitContext {
  * in the deployed site. The output dir is recreated empty rather than deleted,
  * since a dev server may already be serving from it.
  * @param output - absolute output dir
- * @param directory - the resolved input/assets dirs, which must never sit
+ * @param directory - the resolved roots and assets dir, none of which may sit
  *   inside the output dir
- * @param directory.input
+ * @param directory.skrapaRoot
+ * @param directory.projectRoot
  * @param directory.assets
- * @param root - the resolved project root
  */
 export function cleanOutput(
     output: string,
-    directory: { input: string; assets: string },
-    root: string
+    directory: { skrapaRoot: string; projectRoot: string; assets: string }
 ): void {
     // A wrong `output` turns this into an rm -rf of the source: `--output .`
     // would delete the very project being built. Refuse whenever the output dir
-    // *is* or *contains* the root, the input, the assets, or the cwd.
-    const protectedDirs = [root, directory.input, directory.assets, CWD_DIR]
+    // *is* or *contains* the skrapa root, the project root, the assets, or the
+    // cwd.
+    const protectedDirs = [directory.skrapaRoot, directory.projectRoot, directory.assets, CWD_DIR]
         .filter(Boolean)
         .map((dir) => path.resolve(dir));
 
@@ -128,7 +120,27 @@ export function cleanOutput(
     const conflict = protectedDirs.find((dir) => contains(output, dir));
     if (conflict) {
         log.error(
-            `Error: refusing to clean the output dir ${path.relative(CWD_DIR, output) || '.'}; it is or contains ${path.relative(CWD_DIR, conflict) || 'the project root'}.`
+            `Error: refusing to clean the output dir ${path.relative(CWD_DIR, output) || '.'}; it is or contains ${path.relative(CWD_DIR, conflict) || 'the skrapa root'}.`
+        );
+        process.exit(1);
+    }
+
+    // An output dir inside the project is not searched for pages, so a page
+    // kept in it never builds, and cleaning it deletes that page: `output:
+    // "docs"` in a project with a docs/ page. Refuse while it holds one.
+    const findPage = (dir: string): string | undefined => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            const found = entry.isDirectory() ? findPage(full) : entry.name === 'index.tsx' && full;
+            if (found) return found;
+        }
+        return undefined;
+    };
+    const page =
+        contains(directory.skrapaRoot, output) && fs.existsSync(output) && findPage(output);
+    if (page) {
+        log.error(
+            `Error: refusing to clean the output dir ${path.relative(CWD_DIR, output)}; it holds the page ${path.relative(CWD_DIR, page)}. Pick an output dir that is not a page directory.`
         );
         process.exit(1);
     }
@@ -232,27 +244,40 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
     // in the output dir alone.
     const skipAssets = markers.includes('skip-assets');
 
+    // .skrapa is deleted once the process that owns it is done, however it
+    // ends, failures included: a standalone `skrapa build`, or the `dev`
+    // process whose first build this is, when dev mode stops. A dev rebuild
+    // (`skip-assets`) runs as a subprocess of that dev server and leaves it in
+    // place, since the server still needs it between rebuilds: tsc's
+    // incremental state, and the manifest its assets watcher reads.
+    if (!skipAssets) {
+        process.once('exit', () => fs.rmSync(WORKING_DIR, { recursive: true, force: true }));
+    }
+
     // Start from an empty output dir so renamed/deleted pages and removed
     // assets never linger in the build. Skipped for dev's incremental rebuilds,
     // which pass `skip-assets`: those don't re-copy the assets dir, so wiping
     // the output would strip every asset from the running site.
     if (!skipAssets) {
-        cleanOutput(directory.output, directory, config.root);
+        cleanOutput(directory.output, directory);
     }
 
-    exe('tsc', { cwd: config.root });
+    // The project's own outDir and rootDir are overridden rather than read:
+    // everything below relies on a page at about/index.tsx compiling to
+    // .skrapa/about/index.js, whatever the tsconfig says.
+    exe(`tsc -p ${CONFIG_FILE} --outDir .skrapa --rootDir .`, { cwd: directory.skrapaRoot });
 
     // Served-from base path, injected as <base href> so relative asset and link
     // URLs resolve the same from "/" and from nested pages like "/about/".
     // Already slash-normalized on both ends by loadConfig.
     const base = config.base;
 
-    // The compiled output mirrors the input tree under .skrapa/<input>, so a
-    // page authored at src/about/index.tsx compiles to
-    // .skrapa/src/about/index.js. Skrapa does not bundle CSS, so a page's own
-    // stylesheet is copied as-is (see rewrite-shell-imports.ts); anything
-    // shared belongs in the assets dir (e.g. a root-relative <link>).
-    const compiledDir = path.join(WORKING_DIR, config.input);
+    // The compiled output mirrors the project tree under .skrapa, so a page
+    // authored at about/index.tsx compiles to .skrapa/about/index.js. Skrapa
+    // does not bundle CSS, so a page's own stylesheet is copied as-is (see
+    // rewrite-shell-imports.ts); anything shared belongs in the assets dir
+    // (e.g. a root-relative <link>).
+    const compiledDir = WORKING_DIR;
 
     // Every output path this render writes, so the output tree can be checked
     // against the rules in output-paths.ts before anything is copied over it.
@@ -263,13 +288,13 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
     const dirs: RewriteDirs = { ...directory, compiled: compiledDir, emitted, base };
 
     // Find the index.html that serves as a page's template: the one in the
-    // page's own directory, else the nearest ancestor up to the input root.
+    // page's own directory, else the nearest ancestor up to the skrapa root.
     // Returns the template HTML, the file it came from (named in a collision
-    // message), and its input-relative posix dir (for resolving relative
-    // client `src` paths).
+    // message), and its posix dir relative to the skrapa root (for resolving
+    // relative client `src` paths).
     const findTemplate = (pageDir: string): { html: string; file: string; dir: string } | null => {
         for (let d = pageDir; ; d = path.dirname(d) === '.' ? '' : path.dirname(d)) {
-            const p = path.join(directory.input, d, 'index.html');
+            const p = path.join(directory.skrapaRoot, d, 'index.html');
             if (fs.existsSync(p))
                 return {
                     html: fs.readFileSync(p, 'utf-8'),
@@ -281,35 +306,47 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
         return null;
     };
 
-    // Every `<dir>/index.tsx` in the input tree is a candidate page; anything
-    // else (shared components, helpers, client.ts) is ignored. Searching the
-    // source tree (rather than every compiled `index.js`) keeps non-page
-    // TypeScript elsewhere under the compiled output (e.g. this repo's own
-    // CLI source compiling alongside its dogfooded site) from being required
-    // as a page.
+    // Every `<dir>/index.tsx` in the skrapa root is a candidate page; anything else
+    // (shared components, helpers, client.ts) is ignored. Searching the source
+    // tree rather than every compiled `index.js` keeps anything else tsc emits
+    // from being required as a page. Dot-dirs, node_modules and the output and
+    // assets dirs are not source (see isSkippedPath).
+    const notSource = [directory.output, directory.assets];
     const findPages = (dir: string): string[] =>
         fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
             const full = path.join(dir, entry.name);
-            if (entry.isDirectory()) return findPages(full);
+            if (entry.isDirectory()) {
+                return isSkippedPath(directory.skrapaRoot, full, notSource) ? [] : findPages(full);
+            }
             return entry.name === 'index.tsx' ? [full] : [];
         });
 
-    const pageFiles = fs.existsSync(directory.input)
-        ? findPages(directory.input).map((src) =>
-              path.join(compiledDir, path.relative(directory.input, src)).replace(/\.tsx$/, '.js')
-          )
-        : [];
+    const pageFiles = findPages(directory.skrapaRoot).map((src) =>
+        path.join(compiledDir, path.relative(directory.skrapaRoot, src)).replace(/\.tsx$/, '.js')
+    );
 
     let pageCount = 0;
 
     for (const file of pageFiles) {
+        // tsc succeeded but did not emit this one: the tsconfig's own
+        // include/exclude/files left it out, or it has noEmit set. Say which
+        // file and why, rather than let require() fail with a bare path.
+        if (!fs.existsSync(file)) {
+            const source = path.join(directory.skrapaRoot, path.relative(compiledDir, file));
+            log.error(
+                `Error: ${path.relative(CWD_DIR, source).replace(/\.js$/, '.tsx')} was not compiled. ` +
+                    `Check that "include" in ${CONFIG_FILE} covers it and that noEmit is off.`
+            );
+            process.exit(1);
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamically getting all pages, allowed
         const mod = require(file);
         const PageFn = mod.Page;
         // A page is an index module that exports a `Page` function, so skip the rest.
         if (typeof PageFn !== 'function') continue;
 
-        // Page directory relative to the input root: '' (root), 'about', 'a/b'.
+        // Page directory relative to the project: '' (home), 'about', 'a/b'.
         const pageDir = path.relative(compiledDir, path.dirname(file));
 
         const result: Skrapa.Page = PageFn();
@@ -330,7 +367,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
         // pass a page's `./style.css` would fall through and be looked for
         // beside the template instead of beside the page.
         const pagePosixDir = pageDir.split(path.sep).join('/');
-        const pageSource = path.join(directory.input, pageDir, 'index.tsx');
+        const pageSource = path.join(directory.skrapaRoot, pageDir, 'index.tsx');
         const bodyWithScripts = rewriteShellImports(body, pagePosixDir, dirs, pageSource);
 
         // Each page renders into its own index.html template (or the nearest
@@ -380,7 +417,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
 
     if (pageCount === 0) {
         log.error(
-            `Error: no pages found in ${config.input} (a page is a <dir>/index.tsx that exports \`Page\`).`
+            `Error: no pages found in ${path.relative(CWD_DIR, directory.skrapaRoot) || 'this directory'} (a page is a <dir>/index.tsx that exports \`Page\`).`
         );
         process.exit(1);
     }
@@ -429,7 +466,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
     // tree as the deployed site, and an asset that has not been copied yet is
     // indistinguishable from one that does not exist. A dev rebuild skips the
     // copy but is running against an output dir a full build already filled.
-    if (report(checkLinks(directory.output, config.base, config.ignore))) {
+    if (report(checkLinks(directory.output, config.base, config.linkCheckIgnore))) {
         process.exit(1);
     }
 

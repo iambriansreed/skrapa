@@ -1,4 +1,10 @@
 {
+    "skrapa": {
+        "output": "../dist",
+        "assets": "../assets",
+        "port": 8080,
+        "projectRoot": "../"
+    },
     "compilerOptions": {
         "composite": true,
         "target": "ES2020",
@@ -10,10 +16,8 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "outDir": "./.skrapa",
-        "rootDir": "./",
         "lib": ["DOM", "DOM.Iterable", "ES2020"]
     },
-    "include": ["src/**/*.ts", "src/**/*.tsx", "skrapa.d.ts", "skrapa.config.ts"],
+    "include": ["**/*.ts", "**/*.tsx", "../skrapa.d.ts"],
     "exclude": ["node_modules", "dist"]
 }

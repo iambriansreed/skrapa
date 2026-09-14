@@ -8,7 +8,7 @@
 #
 # What is left is the two ways in that release.yml does not cover: a pull
 # request, and by hand.
-name: Deploy to GitHub Pages
+name: Skrapa Deploy to GitHub Pages
 on:
     pull_request:
         branches: ['main']

@@ -3,7 +3,55 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { isGlobalLink } from './utils';
+import { isGlobalLink, isSkippedPath } from './utils';
+
+describe('src/bin/utils.test.ts - isSkippedPath', () => {
+    const project = path.join(path.sep, 'proj');
+    const at = (rel: string) => path.join(project, rel);
+    const notSource = [at('dist'), at('assets')];
+
+    test('source anywhere in the project is not skipped', () => {
+        for (const rel of [
+            'index.tsx',
+            'about/index.tsx',
+            'tsconfig.json',
+            'distant/index.tsx',
+            'assets-old/style.css',
+        ]) {
+            assert.equal(isSkippedPath(project, at(rel), notSource), false, rel);
+        }
+    });
+
+    // Every build writes .skrapa, and an output dir inside the project. The
+    // dev watcher reacting to either rebuilds forever.
+    test('dot-dirs, node_modules and the excluded dirs are skipped, at any depth', () => {
+        for (const rel of [
+            '.skrapa/about/index.js',
+            '.git/HEAD',
+            'node_modules/x/index.tsx',
+            'about/node_modules/y.ts',
+            'dist',
+            'dist/about/index.html',
+            'assets/style.css',
+        ]) {
+            assert.equal(isSkippedPath(project, at(rel), notSource), true, rel);
+        }
+    });
+
+    test('a path outside the project is skipped', () => {
+        assert.equal(isSkippedPath(project, path.join(path.sep, 'elsewhere', 'x.css')), true);
+        assert.equal(isSkippedPath(project, at('../x.css')), true);
+    });
+
+    // The docs site builds to ../dist, outside its project dir.
+    test('an excluded dir outside the project excludes nothing inside it', () => {
+        assert.equal(isSkippedPath(project, at('about'), [path.join(path.sep, 'dist')]), false);
+    });
+
+    test('the project dir itself is not skipped, and empty excludes are ignored', () => {
+        assert.equal(isSkippedPath(project, project, ['']), false);
+    });
+});
 
 describe('src/bin/utils.test.ts - isGlobalLink', () => {
     let dir: string;

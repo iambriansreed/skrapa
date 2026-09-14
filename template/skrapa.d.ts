@@ -100,32 +100,37 @@ declare global {
         type Origin = `${string}://${string}` | '';
 
         /**
-         * What you write in `skrapa.config.ts`. Every field is optional: what you
-         * leave out takes its default, and a CLI flag of the same name beats
-         * whatever is here.
+         * What you write under the `skrapa` key of a tsconfig.json. The key is
+         * required: `"skrapa": true` takes every default, and an object sets the
+         * fields it names. A field left out takes its default, and a CLI flag
+         * of the same name beats whatever is here.
          *
-         *     export default {
-         *         input: 'src',
-         *         port: 8080,
-         *     } satisfies Skrapa.Config;
+         *     {
+         *         "skrapa": { "output": "../dist", "projectRoot": "../" },
+         *         "compilerOptions": { ... },
+         *         "include": [..., "../skrapa.d.ts"]
+         *     }
          *
-         * This is the authoring shape. Skrapa merges it over the defaults, then
-         * over the CLI flags, and normalizes the result before any command runs.
+         * There are two roots. The directory holding the tsconfig.json is the
+         * skrapa root: skrapa runs from it, the pages live in it, and every path
+         * here resolves against it. The project root ({@link Config.projectRoot})
+         * is where the project's own files live: `.github/`, `.gitignore`,
+         * `package.json`, and this file.
+         *
+         * An unknown key or an invalid value stops every command before it does
+         * anything. `compilerOptions.outDir` and `rootDir` are ignored: skrapa
+         * always compiles to `.skrapa/` in the skrapa root, scratch space a build
+         * deletes when it finishes and `dev` deletes when it stops.
          */
         type Config = {
-            /**
-             * Input directory containing index.tsx and client.ts.
-             *
-             * It errors if the directory does not exist or if index.tsx is
-             * missing. Watched in dev mode, where a change triggers a rebuild.
-             * @default "src"
-             */
-            input?: string;
             /**
              * Output directory for built files. Created if it does not exist.
              *
              * In dev mode this directory is served, and watched so a change
              * triggers a reload.
+             *
+             * Relative to the skrapa root, the directory holding tsconfig.json.
+             * A site in `src/` that builds beside it sets `"../dist"`.
              * @default "dist"
              */
             output?: string;
@@ -135,24 +140,24 @@ declare global {
              * a warning if the directory does not exist.
              *
              * In dev mode a created or changed file here is copied straight
-             * through, without a full rebuild.
+             * through, without a full rebuild, and a deleted one is removed from
+             * the output.
              *
              * The copy runs after the pages are rendered, so a file in here
              * whose path lands on a generated one would replace it. The build
              * fails instead, naming both sources and the output path; in dev
              * mode that copy is skipped and logged, leaving the server up.
+             *
+             * Relative to the skrapa root, the directory holding tsconfig.json.
              * @default "assets"
              */
             assets?: string;
             /**
              * Port for the dev server. If it is already in use, dev logs an
              * error and exits rather than silently picking another.
-             *
-             * Accepts a number or a numeric string, since a `--port` flag always
-             * arrives as a string.
              * @default 8080
              */
-            port?: number | `${number}`;
+            port?: number;
             /**
              * Network interface the dev server binds to. Use `"0.0.0.0"` to
              * accept connections from other devices on the network.
@@ -192,24 +197,42 @@ declare global {
              */
             base?: BasePath;
             /**
-             * URL globs the build's link check leaves alone, for paths served
-             * by something other than the build: `['/api/**', '/uploads/*.pdf']`.
-             * `*` matches within a path segment, `**` across them (a trailing
-             * `/**` covers the path itself too), `?` one character. A
-             * `--ignore` flag takes them comma-separated.
+             * URL paths the link check skips: things the deployed site serves
+             * that the build does not write, such as a proxied API, files
+             * uploaded to the host by hand, or a sitemap generated after the
+             * build.
+             *
+             *     "linkCheckIgnore": ["/api/**", "/uploads/*.pdf", "/sitemap.xml"]
+             *
+             * Every other local `href`, `src` and `url()` in the built site has
+             * to name a file the build wrote, or the build fails.
+             *
+             * Each pattern is a path from the site root and starts with `/`.
+             * `*` matches within one path segment, `**` across any number of
+             * them, `?` one character. A trailing `/**` covers the path itself
+             * too, so `/api/**` also skips a link to `/api`. A reference is
+             * matched by where it points, not how it was written, so
+             * `/uploads/*.pdf` covers `../uploads/brief.pdf` on a nested page
+             * as well. Under a {@link Config.base}, a pattern matches with or
+             * without the base in front.
+             *
+             * As a flag, comma-separated:
+             * `--linkCheckIgnore "/api/**,/uploads/*.pdf"`.
              * @default []
              */
-            ignore?: readonly string[];
+            linkCheckIgnore?: readonly string[];
             /**
-             * Directory that `input`, `output` and `assets` resolve against.
+             * The project root: where the project's own files live, as opposed
+             * to the site's. `skrapa init` puts `.github/workflows/skrapa-pages.yml`,
+             * the `.gitignore` entries and the `package.json` scripts here, and
+             * every build writes this file, `skrapa.d.ts`, here, so a tsconfig.json
+             * in a subdirectory lists it in `include`.
              *
-             * Really a CLI flag. Skrapa looks for `skrapa.config.ts` in the
-             * directory `--root` names, so setting this *inside* the config file
-             * moves where the other paths resolve, but not where the file itself
-             * was found.
-             * @default process.cwd()
+             * Relative to the skrapa root, the directory holding tsconfig.json.
+             * A site in `src/` sets `"../"`.
+             * @default "."
              */
-            root?: string;
+            projectRoot?: string;
         };
     }
 

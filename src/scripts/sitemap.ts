@@ -1,5 +1,5 @@
 /**
- * Keeps `assets/sitemap.xml` in step with the pages under `src/`.
+ * Keeps `web/assets/sitemap.xml` in step with the pages under `web/`.
  *
  * The sitemap is an asset rather than a build output on purpose. Assets reach
  * `dist/` the same way on every path there: `npm run build`, and the dev
@@ -22,7 +22,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { absoluteUrl } from '../site';
+import { isSkippedPath } from '../bin/utils';
+import { absoluteUrl } from '../../web/site';
 
 const PAGE_FILE = 'index.tsx';
 
@@ -35,29 +36,33 @@ const EXPORTS_PAGE = /\bexport\s+(?:async\s+)?function\s+Page\b|\bexport\s+(?:co
  * The URL path a page is served at: the root `index.tsx` is `/`, and
  * `about/index.tsx` is `/about/`. Directory URLs, with the trailing slash,
  * because that is what the site links and what the canonical tags name.
- * @param file - input-relative, posix-separated path of a page's `index.tsx`
+ * @param file - project-relative, posix-separated path of a page's `index.tsx`
  */
 export function pageUrl(file: string): string {
     return `/${file.replace(/index\.tsx$/, '')}`;
 }
 
 /**
- * Every page under `input`, as input-relative posix paths of its `index.tsx`.
- * Walks the source tree the way the CLI does (every `index.tsx`, anywhere),
- * then keeps the ones that export `Page`.
- * @param input - absolute path of the site's input dir
+ * Every page under `skrapaRoot`, as posix paths of its `index.tsx` relative to
+ * it. Walks the tree the way the CLI does (every `index.tsx`, skipping what is
+ * not source), then keeps the ones that export `Page`.
+ * @param skrapaRoot - absolute path of the site's skrapa root
+ * @param notSource - absolute dirs the CLI does not look for pages in (assets)
  */
-export function sourcePages(input: string): string[] {
+export function sourcePages(skrapaRoot: string, notSource: readonly string[] = []): string[] {
     const walk = (dir: string, rel: string): string[] =>
         fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
             const child = rel ? `${rel}/${entry.name}` : entry.name;
-            if (entry.isDirectory()) return walk(path.join(dir, entry.name), child);
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                return isSkippedPath(skrapaRoot, full, notSource) ? [] : walk(full, child);
+            }
             if (entry.name !== PAGE_FILE) return [];
             const source = fs.readFileSync(path.join(dir, entry.name), 'utf-8');
             return EXPORTS_PAGE.test(source) ? [child] : [];
         });
 
-    return walk(input, '');
+    return walk(skrapaRoot, '');
 }
 
 const escapeXml = (s: string): string =>
@@ -71,7 +76,7 @@ const escapeXml = (s: string): string =>
 /**
  * The sitemap document for a set of pages, sorted so the file is the same
  * from one run to the next whatever order the walk found them in.
- * @param files - input-relative, posix-separated paths of every page file
+ * @param files - posix paths of every page file, relative to the skrapa root
  */
 export function sitemapXml(files: readonly string[]): string {
     const urls = [...files]
@@ -89,19 +94,19 @@ export function sitemapXml(files: readonly string[]): string {
 }
 
 /**
- * Regenerate `<assets>/sitemap.xml` from the pages under `input`. Leaves the
- * file untouched when it is already current, so a build does not dirty the
+ * Regenerate `<assets>/sitemap.xml` from the pages under `skrapaRoot`. Leaves
+ * the file untouched when it is already current, so a build does not dirty the
  * working tree for nothing.
- * @param input - absolute path of the site's input dir
+ * @param skrapaRoot - absolute path of the site's skrapa root
  * @param assets - absolute path of the site's assets dir
  * @returns the pages listed and whether the file changed
  */
 export function writeSitemap(
-    input: string,
+    skrapaRoot: string,
     assets: string
 ): { file: string; pages: string[]; changed: boolean } {
     const file = path.join(assets, SITEMAP_FILE);
-    const pages = sourcePages(input);
+    const pages = sourcePages(skrapaRoot, [assets]);
     const next = sitemapXml(pages);
     const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : null;
     const changed = current !== next;

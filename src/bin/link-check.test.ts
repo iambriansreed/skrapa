@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { checkLinks, cssReferences, globToRegExp, htmlReferences } from './link-check';
 import { formatProblem, type Problem } from './output-paths';
-import { ensureBin, runBuild, scaffold, tempDir } from '../scripts/fixture';
+import { ensureBin, removeTempDir, runBuild, scaffold, tempDir } from '../scripts/fixture';
 
 describe('src/bin/link-check.test.ts - htmlReferences', () => {
     test('reads href and src, quoted either way or not at all', () => {
@@ -194,7 +194,7 @@ describe('src/bin/link-check.test.ts - globToRegExp', () => {
         assert.ok(!globToRegExp('/a.pdf').test('/axpdf'));
     });
 
-    test('is anchored, so a pattern describes the whole URL', () => {
+    test('is anchored, so a pattern describes the whole path', () => {
         assert.ok(!globToRegExp('/api').test('/api/status'));
     });
 
@@ -224,7 +224,7 @@ function withOutput(files: Record<string, string>, fn: (output: string) => void)
         }
         fn(output);
     } finally {
-        fs.rmSync(output, { recursive: true, force: true });
+        removeTempDir(output);
     }
 }
 
@@ -419,7 +419,7 @@ describe('src/bin/link-check.test.ts - checkLinks', () => {
         );
     });
 
-    test('skips a URL matching an ignore glob, written either way', () => {
+    test('skips a path matching a linkCheckIgnore pattern, however it was written', () => {
         withOutput(
             {
                 'index.html': page('<a href="/uploads/brief.pdf">a</a>'),
@@ -428,6 +428,27 @@ describe('src/bin/link-check.test.ts - checkLinks', () => {
             (output) => {
                 assert.equal(links(checkLinks(output, '/')).length, 2);
                 assert.deepEqual(checkLinks(output, '/', ['/uploads/**']), []);
+            }
+        );
+    });
+
+    // The same tsconfig.json builds with `--base /repo/` and without, so a
+    // pattern that matched only one of the two would fail the other build.
+    test('under a base, matches a pattern with or without the base in front', () => {
+        withOutput(
+            {
+                'index.html': page(
+                    '<a href="api/status">a</a><a href="/repo/uploads/a.pdf">b</a>',
+                    '/repo/'
+                ),
+            },
+            (output) => {
+                assert.equal(links(checkLinks(output, '/repo/')).length, 2);
+                assert.deepEqual(checkLinks(output, '/repo/', ['/api/**', '/uploads/*.pdf']), []);
+                assert.deepEqual(
+                    checkLinks(output, '/repo/', ['/repo/api/**', '/repo/uploads/*.pdf']),
+                    []
+                );
             }
         );
     });
@@ -548,7 +569,10 @@ describe('src/bin/link-check.test.ts - checkLinks', () => {
             (output) => {
                 const [problem] = links(checkLinks(output, '/'));
                 assert.equal(problem.suggestion, undefined);
-                assert.match(formatProblem(problem), /add it to `ignore`/);
+                const message = formatProblem(problem);
+                assert.match(message, /Fix the reference so it names a file/);
+                // The way out, for a path that is served but not built.
+                assert.match(message, /add its path to "linkCheckIgnore"/);
             }
         );
     });
@@ -597,7 +621,7 @@ describe('src/bin/link-check.test.ts - skrapa build, a reference that differs on
         // lowercased. Both files exist, the site works on macOS, and the
         // download is dead everywhere else.
         write(
-            'src/resume/index.tsx',
+            'resume/index.tsx',
             'export const Page = (): Skrapa.Page => <a href="/brian_reed_resume.pdf">CV</a>;\n'
         );
         write('public/Brian_Reed_Resume.pdf', '%PDF-1.4\n');
@@ -605,7 +629,7 @@ describe('src/bin/link-check.test.ts - skrapa build, a reference that differs on
         result = runBuild(fixture);
     });
 
-    after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+    after(() => removeTempDir(fixture));
 
     test('fails the build rather than reporting success', () => {
         assert.equal(result.status, 1, `expected exit 1, got ${result.status}\n${result.output}`);
@@ -643,7 +667,7 @@ describe('src/bin/link-check.test.ts - skrapa build, references off the build', 
         const write = scaffold(fixture);
 
         write(
-            'src/index.tsx',
+            'index.tsx',
             'export const Page = (): Skrapa.Page => (\n' +
                 '    <p>\n' +
                 '        <a href="https://example.com/report.pdf">report</a>\n' +
@@ -651,15 +675,16 @@ describe('src/bin/link-check.test.ts - skrapa build, references off the build', 
                 '        <a href="mailto:hi@example.com">mail</a>\n' +
                 '        <a href="#top">top</a>\n' +
                 '        <img src="/logo.svg" alt="logo" />\n' +
+                '        <a href="/api/status">status</a>\n' +
                 '    </p>\n' +
                 ');\n'
         );
         write('public/logo.svg', '<svg />');
 
-        result = runBuild(fixture);
+        result = runBuild(fixture, ['--linkCheckIgnore', '/api/**']);
     });
 
-    after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+    after(() => removeTempDir(fixture));
 
     test('builds, since another origin is not the build to check', () => {
         assert.equal(result.status, 0, `expected exit 0, got ${result.status}\n${result.output}`);
@@ -668,5 +693,23 @@ describe('src/bin/link-check.test.ts - skrapa build, references off the build', 
             !result.output.includes('example.com'),
             'an external URL is not the build to fix'
         );
+    });
+
+    // A proxied route is served, just not by the build, and a build that
+    // cannot be told so has no way to pass.
+    test('builds past a path linkCheckIgnore names, and fails on it without the pattern', () => {
+        assert.ok(
+            !result.output.includes('/api/status'),
+            'an ignored path is not the build to fix'
+        );
+
+        const unignored = runBuild(fixture);
+        assert.equal(
+            unignored.status,
+            1,
+            `expected exit 1, got ${unignored.status}\n${unignored.output}`
+        );
+        assert.match(unignored.output, /reference\s+\/api\/status/);
+        assert.match(unignored.output, /linkCheckIgnore/);
     });
 });

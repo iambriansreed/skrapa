@@ -101,15 +101,14 @@ export function exe(cmd: string, options: { cwd?: string } = {}) {
 }
 
 export const CONFIG_KEYS: ConfigKey[] = [
-    'input',
     'output',
     'assets',
     'port',
     'host',
     'origin',
     'base',
-    'ignore',
-    'root',
+    'linkCheckIgnore',
+    'projectRoot',
 ];
 
 /**
@@ -118,13 +117,47 @@ export const CONFIG_KEYS: ConfigKey[] = [
  * field: a merge that starts here can never come out with a hole in it.
  */
 export const DEFAULT_CONFIG: ResolvedConfig = {
-    input: 'src',
     output: 'dist',
     assets: 'assets',
     port: 8080,
     host: 'localhost',
     origin: '',
     base: '/',
-    ignore: [],
-    root: process.cwd(),
+    linkCheckIgnore: [],
+    projectRoot: '.',
 } as const;
+
+/**
+ * Whether a path under a skrapa root is outside what skrapa reads as source.
+ *
+ * Pages live directly in the skrapa root, so walking it finds everything else
+ * in there too. Skipped: anything under a dot-dir (`.skrapa`, which tsc and the
+ * manifest write to on every build, `.git`, `.github`), under `node_modules`,
+ * outside the root, or at or under one of `exclude` (the output and assets
+ * dirs). The page walk, the dev watcher, stylesheet copies, `page` and `fix`
+ * all ask this one question, so none of them can drift into reading the
+ * build's own output as source, which in the dev watcher is an endless
+ * rebuild loop.
+ * @param root - absolute skrapa root the path is judged relative to
+ * @param file - absolute path to judge
+ * @param exclude - absolute dirs to leave out; empty entries are ignored
+ */
+export function isSkippedPath(
+    root: string,
+    file: string,
+    exclude: readonly string[] = []
+): boolean {
+    const within = (dir: string) => {
+        const rel = path.relative(dir, file);
+        return (
+            rel === '' ||
+            (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel))
+        );
+    };
+    if (exclude.some((dir) => dir && within(dir))) return true;
+
+    return path
+        .relative(root, file)
+        .split(path.sep)
+        .some((part) => part.startsWith('.') || part === 'node_modules');
+}

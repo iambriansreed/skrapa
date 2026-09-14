@@ -2,63 +2,159 @@
  * `skrapa dev` serves the site with live reload.
  *
  * Builds once, then serves the output dir over HTTP: a WebSocket pushes a
- * reload on every rebuild. Watches the input dir (rebuilds via a `skrapa build`
- * subprocess) and the assets dir (copies changed files through on the fly).
- * @param overrideConfig - {@link Skrapa.Config} applied on top of
- *   `skrapa.config.ts` and the CLI flags below (build flags also accepted):
+ * reload on every rebuild. Watches the skrapa root (rebuilds via a `skrapa
+ * build` subprocess) and the assets dir (copies changed files through on the
+ * fly, and removes deleted ones from the output). A port something else holds
+ * stops it with a message naming the holder
+ * (see portHolder).
+ * @param overrideConfig - {@link Skrapa.Config} applied on top of the
+ *   `skrapa` key in tsconfig.json and the CLI flags below (build flags also
+ *   accepted):
  *   - `--port <n>`       dev server port (default `"8080"`)
  *   - `--host <host>`    interface to bind to (default `"localhost"`)
  *   - `--origin <url>`   public URL when behind a proxy (default: host:port)
  *   - `-v`, `--verbose`  log every HTTP request
  */
 
-import { exec } from 'node:child_process';
+import { exec, execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { build } from './cmd-build';
-import { checkCopy, formatProblem, readManifest } from './output-paths';
-import { color, exe, log } from './utils';
+import { checkCopy, formatProblem, readManifest, walk } from './output-paths';
+import { color, CWD_DIR, exe, isSkippedPath, log } from './utils';
 import type { Socket } from 'node:net';
 import fs from 'node:fs';
 import http from 'node:http';
 import crypto from 'node:crypto';
 
 /** The config keys a rebuild reads. port/host/origin belong to the server. */
-const BUILD_KEYS = ['root', 'input', 'output', 'assets', 'base', 'ignore'] as const;
+const BUILD_KEYS = ['output', 'assets', 'base', 'linkCheckIgnore', 'projectRoot'] as const;
 
 /**
  * The flags to hand the `skrapa build` subprocess each rebuild runs.
  *
- * Every rebuild is a fresh process that resolves its own config from scratch,
- * so whatever this dev server resolved has to be passed explicitly. Without it
- * `skrapa dev --root site` serves site/ but rebuilds whatever happens to be in
- * the current directory on every save, or fails outright when there is no
- * project there; `--base`, `--input` and `--output` are dropped the same way.
+ * Every rebuild is a fresh process that resolves its own config from scratch.
+ * It runs in the same skrapa root and so reads the same tsconfig.json, but a
+ * flag or a programmatic override this dev server was started with would be
+ * lost: `skrapa dev --output public` would serve public/ while every rebuild
+ * wrote to dist/.
  *
  * Resolved values are sent rather than the raw argv, so a setting that came
- * from skrapa.config.ts or from a programmatic override survives too, not only
- * one that was typed as a flag. `ignore` is a list, and goes over as the
- * comma-separated form its flag takes (see normalizeConfig).
+ * from a programmatic override survives too, not only one typed as a flag.
+ * `linkCheckIgnore` goes over in the comma-separated form its flag takes, and
+ * an empty list as an empty value rather than not at all, or the rebuild would
+ * read back the patterns in tsconfig.json that an override had cleared.
  * @param config - the fully resolved config this dev server is serving
  * @returns a leading-space-prefixed flag string, safe to append to a command
  */
 export function rebuildFlags(config: ResolvedConfig): string {
-    return BUILD_KEYS.map((key) => ` --${key} ${JSON.stringify(String(config[key]))}`).join('');
+    return BUILD_KEYS.map((key) => {
+        const value = config[key];
+        const text = typeof value === 'string' ? value : value.join(',');
+        return ` --${key} ${JSON.stringify(text)}`;
+    }).join('');
+}
+
+/**
+ * The files a deletion in the assets dir leaves stale in the output: every file
+ * copied out of the assets dir at the deleted path or below it, since deleting
+ * a directory is one watcher event and every file in it has to go.
+ *
+ * Only files in `copied` are ever named, so nothing the build or a
+ * `postbuild-skrapa` script wrote into the output is taken along.
+ * @param removed - the deleted path, relative to the assets dir
+ * @param copied - every file copied out of the assets dir, relative to it
+ */
+export function staleAssetFiles(removed: string, copied: ReadonlySet<string>): string[] {
+    const under = removed.endsWith(path.sep) ? removed : `${removed}${path.sep}`;
+    return [...copied].filter((file) => file === removed || file.startsWith(under));
 }
 
 /**
  * The command that runs the project's `postbuild-skrapa` script, or `null`
- * when there is no package.json to run it from. Dev runs it from the project
- * root after its first build and after every rebuild.
+ * when there is no package.json to run it from. Dev runs it after its first
+ * build and after every rebuild. package.json lives in the project root, which
+ * the skrapa root is inside of, so npm finds it from either.
  *
  * `npm run --if-present` tolerates a missing *script*, but still errors when
  * there is no package.json at all, and that error would fail every build in a
  * directory that was never `skrapa init`-ed. So the file is checked once, here.
- * @param root - the project root, which is also where the command has to run
+ * @param projectRoot - the project root, where package.json has to be
  */
-export function postbuildCommand(root: string): string | null {
-    return fs.existsSync(path.join(root, 'package.json'))
+export function postbuildCommand(projectRoot: string): string | null {
+    return fs.existsSync(path.join(projectRoot, 'package.json'))
         ? 'npm run --if-present postbuild-skrapa'
         : null;
+}
+
+/** A process listening on a TCP port. */
+export type PortHolder = {
+    pid: number;
+    /** Its full command line. */
+    command: string;
+    /** Its working directory, when that can be read. */
+    cwd: string | null;
+};
+
+/**
+ * What is listening on a port, so a port-in-use error can say what to stop
+ * rather than only that something is there. The usual answer is a dev server
+ * an earlier session left running.
+ *
+ * Asks `lsof`, and `ps` for the full command line, both on the macOS and Linux
+ * the CLI runs on. Only called once listening has already failed, so the cost
+ * is paid by the failure alone.
+ * @param port - the port that could not be listened on
+ * @returns the holder, or null when neither tool can say (not installed, or
+ *   the listener belongs to another user)
+ */
+export function portHolder(port: number): PortHolder | null {
+    const run = (file: string, args: string[]): string => {
+        try {
+            return execFileSync(file, args, {
+                encoding: 'utf-8',
+                stdio: ['ignore', 'pipe', 'ignore'],
+            });
+        } catch {
+            return '';
+        }
+    };
+
+    // -F p: one `p<pid>` line per process; the same process listening on IPv4
+    // and IPv6 is listed once.
+    const listing = run('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fp']);
+    const pid = Number(/^p(\d+)$/m.exec(listing)?.[1]);
+    if (!pid) return null;
+
+    const command = run('ps', ['-o', 'command=', '-p', String(pid)]).trim() || `PID ${pid}`;
+    const cwd = /^n(.+)$/m.exec(run('lsof', ['-a', '-p', String(pid), '-d', 'cwd', '-Fn']))?.[1];
+
+    return { pid, command, cwd: cwd ?? null };
+}
+
+/**
+ * The error for a port something else is listening on. Pure.
+ * @param port - the port that could not be listened on
+ * @param holder - what holds it, from {@link portHolder}
+ */
+export function portInUseMessage(port: number, holder: PortHolder | null): string {
+    if (!holder) {
+        return `Error: port ${port} is already in use. Pass --port <number> to use another.`;
+    }
+
+    // Relative when it is somewhere under here, which is the case worth
+    // recognizing at a glance (this project, or its other site); absolute
+    // otherwise, since a path climbing out of here reads worse than none.
+    const relative = holder.cwd === null ? null : path.relative(CWD_DIR, holder.cwd) || '.';
+    const where =
+        holder.cwd === null
+            ? ''
+            : ` in ${relative === '..' || relative?.startsWith(`..${path.sep}`) ? holder.cwd : relative}`;
+
+    return [
+        `Error: port ${port} is already in use by PID ${holder.pid}${where}:`,
+        `  ${holder.command}`,
+        `Stop it with \`kill ${holder.pid}\`, or pass --port <number> to use another.`,
+    ].join('\n');
 }
 
 // ============================================================================
@@ -75,10 +171,10 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
     // feed) would otherwise be missing until the first save. Synchronous, so
     // it lands before the server starts answering. A failure is reported and
     // the build served without it, the same as a failing rebuild.
-    const postbuild = postbuildCommand(config.root);
+    const postbuild = postbuildCommand(directory.projectRoot);
     if (postbuild) {
         try {
-            exe(postbuild, { cwd: config.root });
+            exe(postbuild, { cwd: directory.projectRoot });
         } catch {
             log.error('postbuild-skrapa failed. Serving the build without it.');
         }
@@ -330,10 +426,10 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
     const triggerBuild = () => {
         if (buildTimer) clearTimeout(buildTimer);
         buildTimer = setTimeout(() => {
-            // cwd is the project root, not wherever dev was started, so the
-            // `postbuild-skrapa` script runs against the project's own
-            // package.json (the one postbuildCommand checked).
-            const options = { cwd: config.root };
+            // cwd is the skrapa root, so the rebuild reads the same
+            // tsconfig.json. npm finds the project root's package.json (the
+            // one postbuildCommand checked) by walking up from there.
+            const options = { cwd: directory.skrapaRoot };
             const then = postbuild ? ` && ${postbuild}` : '';
             const command = `${selfInvoke} build skip-assets pretty${buildFlags}${then}`;
             exec(command, options, (error, stdout, stderr) => {
@@ -367,14 +463,74 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
         }, 100);
     };
 
-    let inputTimer: NodeJS.Timeout | null = null;
+    let sourceTimer: NodeJS.Timeout | null = null;
 
-    fs.watch(directory.input, { recursive: true }, () => {
-        if (inputTimer) clearTimeout(inputTimer);
-        inputTimer = setTimeout(triggerBuild, 100);
+    // The skrapa root holds more than source: every build writes .skrapa (tsc
+    // output, the manifest), and an output dir inside it, so reacting to those
+    // would rebuild forever. The assets dir has its own watcher below.
+    const notSource = [directory.output, directory.assets];
+    fs.watch(directory.skrapaRoot, { recursive: true }, (_event, filename) => {
+        const changed = filename && path.join(directory.skrapaRoot, filename);
+        if (changed && isSkippedPath(directory.skrapaRoot, changed, notSource)) return;
+        if (sourceTimer) clearTimeout(sourceTimer);
+        sourceTimer = setTimeout(triggerBuild, 100);
     });
 
     if (fs.existsSync(directory.assets)) {
+        // The output files that came out of the assets dir, relative to both:
+        // everything the first build copied, plus whatever is copied while
+        // this runs. A deleted asset is removed from the output only through
+        // this set, so a page the build wrote at the same path, or a file a
+        // postbuild-skrapa script wrote, is never taken with it.
+        const copied = new Set(walk(directory.assets));
+
+        // Without this a deleted asset goes on being served until the next
+        // full build empties the output, so a page still linking it looks
+        // fine in dev and 404s once deployed.
+        const removeStale = (filename: string) => {
+            const emitted = readManifest(WORKING_DIR, directory.output);
+            const removed: string[] = [];
+
+            try {
+                for (const file of staleAssetFiles(filename, copied)) {
+                    // Back under the same name already: an editor that saves by
+                    // deleting the file and renaming a new one into place.
+                    if (fs.existsSync(path.join(directory.assets, file))) continue;
+                    copied.delete(file);
+
+                    // A page added since took the path over; that file is the
+                    // build's now.
+                    const dest = path.join(directory.output, file);
+                    if (emitted.heldBy(dest)) continue;
+
+                    fs.rmSync(dest, { force: true });
+                    removed.push(file);
+
+                    // And the directories that leaves empty, so a deleted
+                    // `fonts/` does not linger as an empty one.
+                    let dir = path.dirname(dest);
+                    while (
+                        dir.startsWith(`${directory.output}${path.sep}`) &&
+                        fs.existsSync(dir) &&
+                        fs.readdirSync(dir).length === 0
+                    ) {
+                        fs.rmdirSync(dir);
+                        dir = path.dirname(dir);
+                    }
+                }
+            } catch (err) {
+                log.error(`Asset removal failed: ${(err as Error).message}`);
+            }
+
+            if (removed.length === 0) return;
+            broadcast('reload');
+            const what =
+                removed.length === 1
+                    ? `${directory.output}/${removed[0]}`
+                    : `${removed.length} files under ${directory.output}/${filename}`;
+            log.success(`${directory.assets}/${filename} deleted → ${what} removed`);
+        };
+
         fs.watch(directory.assets, { recursive: true }, (_event, filename) => {
             if (!filename) return;
             const src = path.join(directory.assets, filename);
@@ -386,7 +542,11 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
             // and `.swp`, Emacs writes `.#name`. Copying one through leaves it
             // in the output dir for good, where it ships with the site.
             const isEditorTempFile = /(^|[/\\])\.#|\.tmp(\.[\w-]+)*$|~$|\.swp$/i.test(filename);
-            if (isEditorTempFile || !fs.existsSync(src)) return;
+            if (isEditorTempFile) return;
+            if (!fs.existsSync(src)) {
+                removeStale(filename);
+                return;
+            }
 
             try {
                 // This copy breaks the output-tree rules exactly the way the
@@ -409,8 +569,12 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
                     return;
                 }
 
+                const files = fs.statSync(src).isDirectory()
+                    ? walk(src).map((rel) => path.join(filename, rel))
+                    : [filename];
                 fs.mkdirSync(path.dirname(dest), { recursive: true });
                 fs.cpSync(src, dest, { recursive: true });
+                for (const file of files) copied.add(file);
             } catch (err) {
                 log.error(`Asset copy failed: ${(err as Error).message}`);
                 return;
@@ -424,9 +588,11 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
     // and a raw stack trace; a busy port is an ordinary thing to hit.
     server.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
-            log.error(
-                `\nError: port ${config.port} is already in use. Pass --port <number> to use another.\n`
-            );
+            for (const line of `\n${portInUseMessage(config.port, portHolder(config.port))}\n`.split(
+                '\n'
+            )) {
+                log.error(line);
+            }
         } else {
             log.error(`\nDev server error: ${err.message}\n`);
         }
@@ -445,10 +611,19 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
         }, 1500);
     });
 
-    process.on('SIGINT', () => {
+    // Ctrl+C, a closed terminal, or a kill. Each ends in process.exit, which
+    // is what runs the build's removal of .skrapa (see build() in
+    // cmd-build.ts); a signal left to its default action would skip it.
+    let stopping = false;
+    const stop = () => {
+        if (stopping) return;
+        stopping = true;
         log.info('\nEnding dev mode...\n');
         for (const socket of clients) socket.destroy();
         server.closeAllConnections();
         server.close(() => process.exit(0));
-    });
+    };
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+        process.on(signal, stop);
+    }
 }

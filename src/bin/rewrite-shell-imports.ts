@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { bundleModules } from './bundle';
-import { CWD_DIR, log } from './utils';
+import { CWD_DIR, isSkippedPath, log } from './utils';
 import type { Emitted, EmittedPaths } from './output-paths';
 
 // One attribute: a name, optionally followed by ="value" / ='value' / bare.
@@ -23,13 +23,13 @@ export const ATTR = `[^\\s"'>/=]+(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s"'>\`]+))?`
  * wrote.
  */
 export type RewriteDirs = {
-    /** Absolute input dir, where the source `index.html` and CSS live. */
-    input: string;
+    /** Absolute skrapa root, where the source `index.html` and CSS live. */
+    skrapaRoot: string;
     /** Absolute output dir the build writes to. */
     output: string;
     /** Absolute assets dir, or `''` when the project has none. */
     assets: string;
-    /** Absolute compiled-JS dir (`.skrapa/<input>`), for client bundles. */
+    /** Absolute compiled-JS dir (`<project>/.skrapa`), for client bundles. */
     compiled: string;
     /**
      * The site's base path, always slash-terminated (`'/'`, `'/repo/'`).
@@ -59,12 +59,12 @@ export type RewriteDirs = {
  * is a genuinely easy thing to get wrong, and the resulting warning is baffling
  * when the file is sitting in assets in plain sight. Look for it and say so.
  * @param dirs - resolved build directories; no assets dir means no hint
- * @param rel - the missing path, relative to the input root
+ * @param rel - the missing path, relative to the skrapa root
  * @returns the root-relative href to suggest, or undefined if nothing matches
  */
 function assetsHintFor(dirs: RewriteDirs, rel: string): string | undefined {
     if (!dirs.assets) return undefined;
-    // Same path first, then the bare filename: a page at src/about/ writing
+    // Same path first, then the bare filename: a page at about/ writing
     // `./style.css` is looking for assets/about/style.css if that exists, but
     // far more often just means assets/style.css.
     const candidates = [rel, path.posix.basename(rel)];
@@ -130,17 +130,17 @@ const CSS_LINK_RE = /\srel\s*=\s*(["'])stylesheet\1/i;
  *   {@link IMPORT_TAG_RE}), and each names its file in a single attribute,
  *   `src` for a script, `href` for a stylesheet.
  * - Resolved the same way: a relative path resolves against `templateDir`; a
- *   leading-`/` path resolves from the input root; a URL on another origin is
- *   left untouched.
+ *   leading-`/` path resolves from the assets dir, then the skrapa root; a URL
+ *   on another origin is left untouched.
  * - Emitted differently, and completely so: a script is bundled out of the
- *   compiled tree into a new `.js`; a stylesheet is copied from the input
- *   tree byte-for-byte.
+ *   compiled tree into a new `.js`; a stylesheet is copied from the skrapa
+ *   root byte-for-byte.
  * - Written back the same way: as `<base><output path>`, so the tag names the
  *   URL the file is actually served at under a subpath deploy.
  * @param html - the HTML to rewrite: a whole shell, or a page body before it
  *   is spliced into one
  * @param sourceDir - the directory the HTML was authored in, as a
- *   posix-style path relative to the input root (`''` for the root shell,
+ *   posix-style path relative to the skrapa root (`''` for the top shell,
  *   `'blog/post'` for a nested page). Relative `src`/`href` paths resolve
  *   against it, which is what makes `./style.css` mean "next to the file that
  *   wrote this tag" whether that file is a shell or a page's JSX.
@@ -159,7 +159,7 @@ export function rewriteShellImports(
     html: string,
     sourceDir: string,
     dirs: RewriteDirs,
-    referencedIn = path.join(dirs.input, sourceDir, 'index.html')
+    referencedIn = path.join(dirs.skrapaRoot, sourceDir, 'index.html')
 ): string {
     return html.replace(IMPORT_TAG_RE, (tag: string, scriptAttrs?: string, linkAttrs?: string) => {
         // Exactly one alternative matched, so exactly one group is defined. A
@@ -180,7 +180,7 @@ export function rewriteShellImports(
         // An absolute URL (`https://cdn/lib.css`) or a protocol-relative one
         // (`//cdn/lib.css`) belongs to another origin, so there is nothing to
         // resolve, copy or warn about. Without this the first is joined onto
-        // the input dir as a path (`src/https:/cdn/lib.css`) and the second
+        // the skrapa root as a path (`https:/cdn/lib.css`) and the second
         // reads as root-relative, and both warn about a file that was never
         // meant to be on disk.
         if (/^[a-z][a-z0-9+.-]*:/i.test(ref) || ref.startsWith('//')) return tag;
@@ -189,6 +189,13 @@ export function rewriteShellImports(
         const rel = ref.startsWith('/')
             ? ref.slice(1)
             : path.posix.normalize(path.posix.join(sourceDir, ref));
+
+        // Where a stylesheet is copied from has to be source. The skrapa root
+        // can also hold the output and assets dirs, dot-dirs and node_modules,
+        // and a path can climb out of it (`../x.css`): copying from any of
+        // those would copy the build into itself, or a file from elsewhere.
+        const sourcePath = path.join(dirs.skrapaRoot, rel);
+        const isSource = !isSkippedPath(dirs.skrapaRoot, sourcePath, [dirs.output, dirs.assets]);
 
         // Rewrites only the one attribute; every other one on the tag, and the
         // tag's own shape (`/>` or a closing tag), survives as authored. The
@@ -207,7 +214,7 @@ export function rewriteShellImports(
             writeOut(
                 dirs,
                 path.join(dirs.output, outId),
-                { kind: 'script', sources: [path.join(dirs.input, rel)] },
+                { kind: 'script', sources: [path.join(dirs.skrapaRoot, rel)] },
                 (to) => fs.writeFileSync(to, bundle)
             );
             return withResolvedPath(outId);
@@ -216,21 +223,20 @@ export function rewriteShellImports(
         // A root-relative stylesheet is already pointing at the output path it
         // will end up on, so it is only ever copied, never resolved anywhere
         // else. It comes either from the assets dir, which is copied to the
-        // output root wholesale, or from the root of the input dir, which
-        // nothing else would carry across. The href is still rewritten, since
+        // output root wholesale, or from the skrapa root, which nothing else
+        // would carry across. The href is still rewritten, since
         // the path it names is below the base and the href as authored is not.
         // At the default base that rewrite puts back exactly what was there.
         if (ref.startsWith('/')) {
             const assetPath = dirs.assets && path.join(dirs.assets, rel);
             if (assetPath && fs.existsSync(assetPath)) return withResolvedPath(rel);
 
-            const inputPath = path.join(dirs.input, rel);
-            if (fs.existsSync(inputPath)) {
+            if (isSource && fs.existsSync(sourcePath)) {
                 writeOut(
                     dirs,
                     path.join(dirs.output, rel),
-                    { kind: 'stylesheet', sources: [inputPath] },
-                    (to) => fs.copyFileSync(inputPath, to)
+                    { kind: 'stylesheet', sources: [sourcePath] },
+                    (to) => fs.copyFileSync(sourcePath, to)
                 );
                 return withResolvedPath(rel);
             }
@@ -240,21 +246,20 @@ export function rewriteShellImports(
             warnStylesheetNotFound(
                 ref,
                 referencedIn,
-                assetPath ? [assetPath, inputPath] : [inputPath]
+                assetPath ? [assetPath, sourcePath] : [sourcePath]
             );
             return tag;
         }
 
-        const srcPath = path.join(dirs.input, rel);
-        if (!fs.existsSync(srcPath)) {
-            warnStylesheetNotFound(ref, referencedIn, [srcPath], assetsHintFor(dirs, rel));
+        if (!isSource || !fs.existsSync(sourcePath)) {
+            warnStylesheetNotFound(ref, referencedIn, [sourcePath], assetsHintFor(dirs, rel));
             return tag;
         }
         writeOut(
             dirs,
             path.join(dirs.output, rel),
-            { kind: 'stylesheet', sources: [srcPath] },
-            (to) => fs.copyFileSync(srcPath, to)
+            { kind: 'stylesheet', sources: [sourcePath] },
+            (to) => fs.copyFileSync(sourcePath, to)
         );
         return withResolvedPath(rel);
     });

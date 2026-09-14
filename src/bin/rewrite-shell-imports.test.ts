@@ -6,7 +6,7 @@ import path from 'node:path';
 import { rewriteShellImports, type RewriteDirs } from './rewrite-shell-imports';
 
 // These two rewriters read and write real files, so each run gets a throwaway
-// tree: <tmp>/{src,dist,assets,compiled}. Until they were lifted out of
+// tree: <tmp>/{src,dist,assets,compiled}, with src/ as the project dir. Until they were lifted out of
 // build(), only the end-to-end run reached them, which is how a `>` inside an
 // unrelated attribute came to silently skip a client script.
 let root: string;
@@ -24,7 +24,7 @@ const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf-8');
 before(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'skrapa-rewrite-'));
     dirs = {
-        input: path.join(root, 'src'),
+        skrapaRoot: path.join(root, 'src'),
         output: path.join(root, 'dist'),
         assets: path.join(root, 'assets'),
         compiled: path.join(root, 'compiled'),
@@ -51,7 +51,7 @@ describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, client sc
         assert.match(read('dist/about/client.js'), /about client/);
     });
 
-    test('resolves a root-relative src from the input root', () => {
+    test('resolves a root-relative src from the project dir', () => {
         const out = rewriteShellImports('<script src="/client.ts"></script>', 'about', dirs);
         assert.match(out, /src="\/client\.js"/);
         assert.ok(exists('dist/client.js'));
@@ -118,12 +118,32 @@ describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, styleshee
         assert.equal(rewriteShellImports(tag, '', dirs), tag);
     });
 
-    test('copies a root-relative href that only the input root has', () => {
+    test('copies a root-relative href that only the project dir has', () => {
         const noAssets = { ...dirs, assets: path.join(root, 'no-assets') };
         const tag = '<link rel="stylesheet" href="/style.css" />';
         assert.equal(rewriteShellImports(tag, '', noAssets), tag);
         assert.ok(exists('dist/style.css'));
         assert.match(read('dist/style.css'), /color: red/);
+    });
+
+    // The project dir holds more than source. A stylesheet read out of the
+    // output dir is the build copying itself, and one outside the project is
+    // a file from somewhere else entirely; both are reported as not found.
+    test('does not copy a stylesheet from the output dir or from outside the project', (t) => {
+        const logged: string[] = [];
+        t.mock.method(console, 'log', (msg: string) => logged.push(String(msg)));
+
+        const outputInside = { ...dirs, output: path.join(root, 'src', 'out') };
+        write('src/out/built.css', 'a {}\n');
+        write('outside.css', 'a {}\n');
+
+        for (const href of ['./out/built.css', '/out/built.css', '../outside.css']) {
+            const tag = `<link rel="stylesheet" href="${href}" />`;
+            assert.equal(rewriteShellImports(tag, '', outputInside), tag, href);
+        }
+
+        assert.equal(logged.filter((l) => l.includes('Stylesheet not found')).length, 3);
+        assert.ok(!exists('src/out/out'));
     });
 
     test('a ">" in an earlier attribute does not hide the href', () => {
@@ -137,7 +157,7 @@ describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, styleshee
     });
 
     // A CDN stylesheet is ordinary, and nothing about it is missing, so it
-    // must pass through silently rather than being joined onto the input dir
+    // must pass through silently rather than being joined onto the project dir
     // and warned about.
     test('leaves stylesheets on another origin alone', () => {
         for (const href of [
@@ -167,7 +187,7 @@ describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, styleshee
             '<link rel="stylesheet" href="./missing.css" />',
             'about',
             dirs,
-            path.join(dirs.input, 'about', 'index.tsx')
+            path.join(dirs.skrapaRoot, 'about', 'index.tsx')
         );
 
         const warnings = logged.filter((l) => l.includes('Stylesheet not found'));
@@ -280,7 +300,7 @@ describe('src/bin/rewrite-shell-imports.test.ts - rewriteShellImports, under a b
         assert.match(out, /href="\/repo\/style\.css"/);
     });
 
-    test('writes the base into a root-relative href from the input root', () => {
+    test('writes the base into a root-relative href from the project dir', () => {
         const out = rewriteShellImports('<link rel="stylesheet" href="/style.css" />', '', {
             ...based(),
             assets: path.join(root, 'no-assets'),

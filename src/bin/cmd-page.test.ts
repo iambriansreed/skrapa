@@ -1,7 +1,9 @@
-import { test, describe } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { slugify, planPage } from './cmd-page';
+import { ensureBin, removeTempDir, runBuild, runCli, scaffold, tempDir } from '../scripts/fixture';
 
 describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
     test('slugify lowercases, hyphenates non-alphanumerics, and trims edges', () => {
@@ -12,13 +14,13 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
         assert.equal(slugify('@#$'), '');
     });
 
-    test('planPage places a page under the input root and fills its four files', () => {
-        const plan = planPage({ name: 'About Us', root: '/proj' });
+    test('planPage places a page in the project dir and fills its four files', () => {
+        const plan = planPage({ name: 'About Us', skrapaRoot: '/proj' });
 
         assert.equal(plan.slug, 'about-us');
-        assert.equal(plan.route, 'src/about-us');
+        assert.equal(plan.route, 'about-us');
         assert.equal(plan.urlPath, '/about-us/');
-        assert.equal(plan.dir, path.join('/proj', 'src', 'about-us'));
+        assert.equal(plan.dir, path.join('/proj', 'about-us'));
         assert.deepEqual(Object.keys(plan.files).sort(), [
             'client.ts',
             'index.html',
@@ -32,42 +34,119 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
         assert.match(plan.files['client.ts'], /about-us page loaded/);
     });
 
-    test('planPage nests under a parent route and strips surrounding slashes', () => {
-        const plan = planPage({ name: 'First Post', parent: '/blog/', root: '/proj' });
+    // Either link to nothing fails the next build's link check: /style.css in a
+    // project with no global stylesheet, or a home link with no home page.
+    test('planPage links the global stylesheet and the home page only when they exist', () => {
+        const bare = planPage({ name: 'Contact', skrapaRoot: '/proj' });
+        assert.doesNotMatch(bare.files['index.html'], /href="\/style\.css"/);
+        assert.match(bare.files['index.html'], /href="\.\/style\.css"/);
+        assert.doesNotMatch(bare.files['index.tsx'], /Home/);
 
-        assert.equal(plan.route, 'src/blog/first-post');
-        assert.equal(plan.urlPath, '/blog/first-post/');
-        assert.equal(plan.dir, path.join('/proj', 'src', 'blog', 'first-post'));
+        const full = planPage({
+            name: 'Contact',
+            skrapaRoot: '/proj',
+            globalStylesheet: true,
+            homePage: true,
+        });
+        assert.match(full.files['index.html'], /href="\/style\.css"/);
+        assert.match(full.files['index.html'], /href="\.\/style\.css"/);
+        assert.match(full.files['index.tsx'], /<a href="\.\/">← Home<\/a>/);
     });
 
-    test('planPage honors a custom input dir', () => {
-        const plan = planPage({ name: 'Home', input: 'app', root: '/proj' });
+    // Under a base like /repo/, a hand-written `/` is the domain root, where
+    // the site is not. A relative link resolves through the page's <base href>.
+    test('planPage writes the home link relative, so it resolves under any base', () => {
+        const plan = planPage({ name: 'Contact', skrapaRoot: '/proj', homePage: true });
+        assert.doesNotMatch(plan.files['index.tsx'], /href="\/"/);
+    });
 
-        assert.equal(plan.route, 'app/home');
-        assert.equal(plan.dir, path.join('/proj', 'app', 'home'));
+    test('planPage nests under a parent route and strips surrounding slashes', () => {
+        const plan = planPage({ name: 'First Post', parent: '/blog/', skrapaRoot: '/proj' });
+
+        assert.equal(plan.route, 'blog/first-post');
+        assert.equal(plan.urlPath, '/blog/first-post/');
+        assert.equal(plan.dir, path.join('/proj', 'blog', 'first-post'));
     });
 
     test('planPage throws when the name has no usable characters', () => {
-        assert.throws(() => planPage({ name: '@#$', root: '/proj' }), /no letters or numbers/);
+        assert.throws(
+            () => planPage({ name: '@#$', skrapaRoot: '/proj' }),
+            /no letters or numbers/
+        );
     });
 
-    // A parent that climbs out of the input dir would scaffold files in a
+    // A parent that climbs out of the project would scaffold files in a
     // surprising place, and the page would never build (the build only scans
-    // the input tree). Interior `..` that stays inside is fine once
+    // the project tree). Interior `..` that stays inside is fine once
     // normalized; only a net climb is refused.
-    test('planPage refuses a parent that escapes the input dir', () => {
+    test('planPage refuses a parent that escapes the project dir', () => {
         for (const parent of ['..', '../outside', 'a/../../b', 'a/b/../../../c']) {
             assert.throws(
-                () => planPage({ name: 'Post', parent, root: '/proj' }),
-                /outside the input directory/,
+                () => planPage({ name: 'Post', parent, skrapaRoot: '/proj' }),
+                /outside the skrapa root/,
                 `parent ${JSON.stringify(parent)} should throw`
             );
         }
     });
 
-    test('planPage allows interior ".." that stays inside the input dir', () => {
-        const plan = planPage({ name: 'Post', parent: 'a/../blog', root: '/proj' });
-        assert.equal(plan.route, 'src/blog/post');
-        assert.equal(plan.dir, path.join('/proj', 'src', 'blog', 'post'));
+    test('planPage allows interior ".." that stays inside the project dir', () => {
+        const plan = planPage({ name: 'Post', parent: 'a/../blog', skrapaRoot: '/proj' });
+        assert.equal(plan.route, 'blog/post');
+        assert.equal(plan.dir, path.join('/proj', 'blog', 'post'));
+    });
+
+    // Inside the project, but where the build never looks for pages: the page
+    // would never build, and one in the output dir would be deleted by the
+    // next build.
+    test('planPage refuses a page where the build does not look for pages', () => {
+        const notSource = [path.join('/proj', 'dist'), path.join('/proj', 'assets')];
+        const cases: [string, string | undefined][] = [
+            ['Dist', undefined],
+            ['Post', 'dist/archive'],
+            ['Post', 'assets'],
+            ['Post', '.github'],
+            ['Post', 'node_modules'],
+        ];
+        for (const [name, parent] of cases) {
+            assert.throws(
+                () => planPage({ name, parent, skrapaRoot: '/proj', notSource }),
+                /does not build pages from/,
+                `${name} under ${parent} should throw`
+            );
+        }
+    });
+});
+
+describe('src/bin/cmd-page.test.ts - skrapa build, a page scaffolded into a project without global styles', () => {
+    let fixture: string;
+    let scaffolded: { status: number | null; output: string };
+
+    before(() => {
+        ensureBin();
+        fixture = tempDir('page-build-');
+        scaffold(fixture);
+        // A non-default assets dir has to exist, or the build refuses. Left
+        // empty, so there is no global style.css to link.
+        fs.mkdirSync(path.join(fixture, 'public'));
+        scaffolded = runCli(fixture, ['page', 'Contact Us', '--assets', 'public']);
+    });
+
+    after(() => removeTempDir(fixture));
+
+    test('scaffolds the page', () => {
+        assert.equal(scaffolded.status, 0, scaffolded.output);
+        assert.ok(fs.existsSync(path.join(fixture, 'contact-us', 'index.tsx')));
+    });
+
+    // The shell linked /style.css whether or not there was one, and the page
+    // linked home as `/`, the domain root under a base. Either failed the link
+    // check on the very next build.
+    test('builds as scaffolded, at the default base and under a subpath', () => {
+        for (const args of [[], ['--base', '/repo/']]) {
+            const result = runBuild(fixture, args);
+            const shown = `build ${args.join(' ')}`.trim();
+            assert.equal(result.status, 0, `${shown} exited ${result.status}\n${result.output}`);
+            assert.doesNotMatch(result.output, /Reference does not resolve|Stylesheet not found/);
+        }
     });
 });

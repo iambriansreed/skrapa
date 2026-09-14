@@ -1,6 +1,6 @@
 /**
- * Renders `assets/og.png`, the 1200x630 social card every page names in its
- * `og:image` and `twitter:image` tags (see `src/components/seo.tsx`).
+ * Renders `web/assets/og.png`, the 1200x630 social card every page names in its
+ * `og:image` and `twitter:image` tags (see `web/components/seo.tsx`).
  *
  * Run `npm run og-image` after changing the tagline, the wordmark or the brand
  * colours, then commit the PNG. It is a checked-in asset rather than a build
@@ -19,12 +19,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT_DIR } from './utils';
-import { SITE_NAME, SITE_URL, TAGLINE } from '../site';
+import { ROOT_DIR, WEB_DIR } from './utils';
+import { SITE_NAME, SITE_URL, TAGLINE } from '../../web/site';
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const OUT = path.join(ROOT_DIR, 'assets', 'og.png');
+const OUT = path.join(WEB_DIR, 'assets', 'og.png');
 
 const CHROME_CANDIDATES = [
     process.env.CHROME,
@@ -37,7 +37,7 @@ const CHROME_CANDIDATES = [
     '/usr/bin/chromium-browser',
 ].filter((p): p is string => Boolean(p));
 
-// The same five strokes as components/logo.tsx and assets/skrapa.svg.
+// The same five strokes as web/components/logo.tsx and web/assets/skrapa.svg.
 const LOGO = /* html */ `<svg viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round">
   <line x1="135" y1="42" x2="62" y2="52" />
   <line x1="62" y1="52" x2="82" y2="102" />
@@ -46,7 +46,7 @@ const LOGO = /* html */ `<svg viewBox="0 0 200 200" fill="none" stroke="currentC
   <line x1="118" y1="152" x2="62" y2="158" />
 </svg>`;
 
-// Colours and the font stack are copied from assets/style.css: the card is a
+// Colours and the font stack are copied from web/assets/style.css: the card is a
 // standalone document, so it cannot link the sheet, and the tokens it needs
 // are few enough to carry.
 const CARD = /* html */ `<!doctype html>

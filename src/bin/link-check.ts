@@ -24,8 +24,8 @@
  * References are read from HTML (`href`, `src`, `srcset`) and from CSS
  * (`url()`, `@import`, `image-set()`). Anything that cannot name a file in the
  * build is skipped: another origin, a `data:`/`mailto:`/`tel:` URI, a bare
- * `#fragment`, and whatever matches a glob in `ignore` (the escape hatch for
- * paths something other than the build serves).
+ * `#fragment`, and a path matching a `linkCheckIgnore` pattern (the way out
+ * for a path something other than the build serves).
  *
  * Resolution goes through `base`, which is the other half of the same failure.
  * A relative URL resolves against the `<base href>` skrapa injects, exactly as
@@ -521,19 +521,19 @@ function sameButForCase(a: string, b: string): boolean {
 }
 
 // ============================================================================
-// IGNORE GLOBS
+// LINKCHECKIGNORE PATTERNS
 // ============================================================================
 
 /**
- * A glob as a regular expression: `*` matches within one path segment, `**`
- * across them, `?` matches one character. Anchored, so a pattern describes the
- * whole URL rather than a piece of it.
+ * A `linkCheckIgnore` pattern as a regular expression: `*` matches within one
+ * path segment, `**` across them, `?` matches one character. Anchored, so a
+ * pattern describes the whole path rather than a piece of it.
  *
  * A trailing `/**` covers the path itself as well as everything under it.
- * `ignore: ['/api/**']` is someone saying the API is not theirs to serve, and
- * having to write `/api` beside it to cover the bare URL is a papercut that
- * only shows up as a failed build.
- * @param glob - a pattern from the `ignore` config
+ * `/api/**` is someone saying the API is not theirs to serve, and having to
+ * write `/api` beside it to cover the bare URL is a papercut that only shows
+ * up as a failed build.
+ * @param glob - one pattern from `linkCheckIgnore`
  */
 export function globToRegExp(glob: string): RegExp {
     const subtree = glob.endsWith('/**');
@@ -573,7 +573,8 @@ export function globToRegExp(glob: string): RegExp {
  * means something different in each.
  * @param output - absolute output dir
  * @param base - the site's normalized base path, always slash-terminated
- * @param ignore - globs for URLs served by something other than the build
+ * @param ignore - `linkCheckIgnore`: patterns for paths something other than
+ *   the build serves
  * @returns every unresolved reference, in walk order
  */
 export function checkLinks(
@@ -621,9 +622,15 @@ export function checkLinks(
 
             const { absolute, target, outsideBase } = resolveUrl(url, fromDir, base);
 
-            // Matched against both spellings, so `/uploads/**` covers a
-            // page-relative `../uploads/brief.pdf` as well as the literal one.
-            if (ignored.some((glob) => glob.test(url) || glob.test(absolute))) continue;
+            // Matched against where the reference points, not how it was
+            // written, so `/uploads/**` covers a page-relative
+            // `../uploads/brief.pdf` too. Inside a base the path below it is
+            // tried as well, so one pattern holds for a build given
+            // `--base /repo/` and for one without.
+            const belowBase = outsideBase ? null : `/${target}`;
+            const skip = (glob: RegExp) =>
+                glob.test(absolute) || (belowBase !== null && glob.test(belowBase));
+            if (ignored.some(skip)) continue;
 
             if (!outsideBase && candidates(target).some((candidate) => files.has(candidate)))
                 continue;

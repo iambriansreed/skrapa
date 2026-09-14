@@ -60,11 +60,18 @@ type TreeNode = {
     children?: TreeNode[];
 };
 
+// What a new project gets. A site added to an existing project gets the src/
+// half in the directory init ran in instead (see the init section).
 const TREE: TreeNode[] = [
     {
         name: 'src',
         dir: true,
+        desc: 'the skrapa root: pages, shells and tsconfig.json',
         children: [
+            {
+                name: 'tsconfig.json',
+                desc: 'wires the jsx / Fragment runtime; skrapa settings go under "skrapa"',
+            },
             { name: 'index.html', desc: 'shared HTML shell (head + body)' },
             { name: 'index.tsx', desc: 'home page, Page() → dist/index.html' },
             { name: 'client.ts', desc: 'browser JS, compiled and linked via <script src>' },
@@ -97,15 +104,16 @@ const TREE: TreeNode[] = [
             { name: 'github.svg', desc: 'icon' },
         ],
     },
-    { name: 'skrapa.config.ts', desc: 'build + dev-server settings' },
-    { name: 'tsconfig.json', desc: 'wires the jsx / Fragment runtime' },
     {
         name: 'skrapa.d.ts',
         desc: 'global types (Skrapa.Page, jsx, raw, VERSION), managed by skrapa',
     },
     { name: 'README.md', desc: 'starter readme for your project' },
     { name: 'package.json', desc: 'created or updated to add dev + build scripts' },
-    { name: '.gitignore', desc: 'created or updated to ignore .skrapa, node_modules, dist' },
+    {
+        name: '.gitignore',
+        desc: 'created or updated to ignore src/.skrapa, node_modules, dist',
+    },
     {
         name: '.github',
         dir: true,
@@ -115,7 +123,7 @@ const TREE: TreeNode[] = [
                 dir: true,
                 children: [
                     {
-                        name: 'deploy.yml',
+                        name: 'skrapa-pages.yml',
                         desc: 'GitHub Pages deploy, gated on the commit message',
                     },
                 ],
@@ -171,23 +179,41 @@ function TreeList({ nodes }: { nodes: TreeNode[] }) {
     );
 }
 
-const CONFIG_SAMPLE = /* TypeScript */ `export default {
-  input: 'src',
-  output: 'dist',
-  assets: 'assets',
-  port: 8080,
-} satisfies Skrapa.Config;`;
+// JSON, so the CodeCard showing it is left unhighlighted: highlight.tsx
+// tokenizes TypeScript only. This is a new project's src/tsconfig.json.
+const CONFIG_SAMPLE = `{
+  "skrapa": {
+    "output": "../dist",
+    "assets": "../assets",
+    "port": 8080,
+    "projectRoot": "../"
+  },
+  "compilerOptions": { ... },
+  "include": ["**/*.ts", "**/*.tsx", "../skrapa.d.ts"]
+}`;
+
+// A piece of the same file, unhighlighted for the same reason.
+const LINK_IGNORE_SAMPLE = `"skrapa": {
+  "linkCheckIgnore": ["/api/**", "/uploads/*.pdf", "/sitemap.xml"]
+}`;
 
 const CONFIG = [
-    ['input', '"src"', 'Directory containing index.html, index.tsx, client.ts'],
     ['output', '"dist"', 'Build output directory'],
     ['assets', '"assets"', 'Static files copied as-is to output; skipped if not present'],
     ['port', '8080', 'Dev server port'],
     ['host', '"localhost"', 'Interface the dev server binds to'],
     ['origin', '""', 'Public URL when a proxy or tunnel fronts the dev server'],
     ['base', '"/"', 'Served-from base path, injected as <base href>'],
-    ['ignore', '[]', 'URL globs the link check leaves alone'],
-    ['root', 'cwd', 'Directory input, output and assets resolve against'],
+    [
+        'linkCheckIgnore',
+        '[]',
+        'URL paths the link check skips, for what the site serves but the build does not write',
+    ],
+    [
+        'projectRoot',
+        '"."',
+        'The project root, where package.json, .gitignore and .github live and skrapa.d.ts is written',
+    ],
 ];
 
 // The message, verbatim. Both spellings on screen together is the whole point
@@ -197,15 +223,16 @@ const LINK_ERROR = `Reference does not resolve:
   reference       /brian_reed_resume.pdf
   did you mean    /Brian_Reed_Resume.pdf   (differs only in case)`;
 
-const IGNORE_SAMPLE = /* TypeScript */ `export default {
-  ignore: ['/api/**', '/uploads/*.pdf'],
-} satisfies Skrapa.Config;`;
+// The shape of portInUseMessage in src/bin/cmd-dev.ts.
+const PORT_BUSY = `Error: port 8090 is already in use by PID 43577 in web:
+  node /usr/local/bin/skrapa dev
+Stop it with \`kill 43577\`, or pass --port <number> to use another.`;
 
 const COMMANDS = [
     [
         'npx skrapa init',
-        'Scaffold a new project, then start the dev server (the default in a directory that has no skrapa.config.ts yet).',
-        '-f / --force, --no-dev, --root',
+        'Scaffold a site, as a new project or added to an existing one, then start the dev server. Bare npx skrapa does this too, but only in a directory with no tsconfig.json, no package.json and no old skrapa.config.ts.',
+        '--new, --projectRoot <dir>, -f / --force, --no-dev',
     ],
     [
         'npx skrapa dev',
@@ -215,17 +242,17 @@ const COMMANDS = [
     [
         'npx skrapa build',
         'Render the site to static HTML in the output dir.',
-        '--input, --output, --assets, --base, --ignore, --root',
+        '--output, --assets, --base, --linkCheckIgnore, --projectRoot',
     ],
     [
         'npx skrapa page "<name>" [parent]',
-        'Scaffold a new page dir: index.tsx + index.html + style.css + client.ts.',
-        'name (positional), parent (positional), --input, --root',
+        'Scaffold a new page dir in the skrapa root: index.tsx + index.html + style.css + client.ts.',
+        'name (positional), parent (positional), plus the config flags',
     ],
     [
         'npx skrapa fix',
-        'Migrate a project written against an older skrapa: skrapa.config.json becomes skrapa.config.ts, and the old global type names (Page, Props, Tag, ...) become their Skrapa.* equivalents. Idempotent, so it is safe to run twice.',
-        '--root, --output',
+        'Migrate a project written against an older skrapa: settings in skrapa.config.ts (or .json) move into a skrapa key (in a copy of the template tsconfig.json in src/ when the pages lived there), and the old global type names (Page, Props, Tag, ...) become their Skrapa.* equivalents. Idempotent, so it is safe to run twice.',
+        '--output',
     ],
 ];
 
@@ -241,6 +268,10 @@ const TOC = [
     {
         hash: 'structure',
         label: 'What gets scaffolded',
+    },
+    {
+        hash: 'roots',
+        label: 'Two roots',
     },
     {
         hash: 'routing',
@@ -312,32 +343,80 @@ export function Page(): Skrapa.Page {
 
                         <h2 id="init">Initialize a project</h2>
                         <p>
-                            Run <code>init</code> in an empty directory (or an existing one) to lay
-                            down a starter project and boot the dev server:
+                            Run <code>init</code> to lay down a starter site and boot the dev
+                            server:
                         </p>
                         <pre class="cli">
                             <code>npx skrapa init</code>
                         </pre>
+                        <p>
+                            In a terminal it asks one question first:{' '}
+                            <strong>Is this a new project?</strong>
+                        </p>
                         <ul>
-                            <li>scaffolds the default files</li>
                             <li>
-                                installs <code>typescript</code> as a dev dependency
+                                <strong>A new project</strong> (the default answer,{' '}
+                                <code>--new</code>, or no terminal to ask in) gets the whole
+                                template, as it is, in the current directory. That directory is the
+                                project root, and the site is in <code>src/</code>.{' '}
+                                <code>package.json</code> gets{' '}
+                                <code>"dev": "cd src &amp;&amp; npx skrapa dev"</code> and{' '}
+                                <code>"build": "cd src &amp;&amp; npx skrapa build"</code>, and{' '}
+                                <code>.gitignore</code> gets <code>src/.skrapa</code>,{' '}
+                                <code>node_modules</code> and <code>dist</code>.
                             </li>
                             <li>
-                                starts the dev server (pass <code>--no-dev</code> to skip it)
+                                <strong>An existing project</strong> (answer <code>n</code>, or pass{' '}
+                                <code>--projectRoot &lt;dir&gt;</code>) is asked for its project
+                                root, with the nearest directory at or above this one that holds a{' '}
+                                <code>package.json</code> or <code>.git</code> as the suggestion. It
+                                has to be the current directory or one above it. The current
+                                directory becomes the skrapa root and gets the site's own files: the
+                                template's pages, <code>assets/</code>, and a{' '}
+                                <code>tsconfig.json</code> whose <code>skrapa</code> key names that
+                                project root. The build writes <code>dist/</code> there too, so
+                                nothing lands on the project's existing files. Only the
+                                project-level files go to the project root: <code>skrapa.d.ts</code>
+                                , the GitHub Pages workflow (left alone if it exists),{' '}
+                                <code>.gitignore</code> entries for the site's <code>.skrapa</code>{' '}
+                                and <code>dist</code>, and <code>skrapa:dev</code> /{' '}
+                                <code>skrapa:build</code> scripts, named so they cannot collide with
+                                the project's own <code>dev</code> and <code>build</code>.
                             </li>
                         </ul>
                         <p>
+                            Either way, <code>typescript</code> is installed as a dev dependency
+                            only when the project does not already depend on it, and the dev server
+                            starts from the skrapa root (pass <code>--no-dev</code> to skip it).
                             Existing files are left in place unless you pass <code>-f</code> /{' '}
-                            <code>--force</code> to overwrite them with the scaffolded versions.
+                            <code>--force</code> to overwrite them with the scaffolded versions. An
+                            existing <code>tsconfig.json</code> is kept with a warning, since pages
+                            need its JSX settings, and given a <code>skrapa</code> key if it has
+                            none.
+                        </p>
+                        <p>
+                            Bare <code>npx skrapa</code> runs <code>init</code> too, but only in a
+                            directory with no <code>tsconfig.json</code>, no{' '}
+                            <code>package.json</code>, and no <code>skrapa.config.ts</code> or{' '}
+                            <code>skrapa.config.json</code> from an older version. Anywhere else it
+                            says why, and what to run instead, and exits rather than scaffold over
+                            an existing project. To scaffold anyway, run{' '}
+                            <code>npx skrapa init</code> by name.
                         </p>
 
                         <h2 id="commands">Commands</h2>
                         <p>
                             Five commands, each also runnable through an <code>npm</code> script.
-                            The config flags (<code>--input</code>, <code>--root</code>, and the
-                            rest from <a href="/docs/#config">Configuration</a>) override{' '}
-                            <code>skrapa.config.ts</code> for any command.
+                            Every command but <code>init</code> runs in the skrapa root, the
+                            directory holding <code>tsconfig.json</code> (which is why a new
+                            project's scripts <code>cd src</code> first), and takes the config flags
+                            (<code>--output</code>, <code>--port</code>, <code>--projectRoot</code>,
+                            and the rest from <a href="/docs/#config">Configuration</a>), which
+                            override the <code>skrapa</code> key in that file. A flag with nothing
+                            after it stops the command rather than being dropped.{' '}
+                            <code>--root</code> and <code>--input</code> are gone, and{' '}
+                            <code>--ignore</code> is <code>--linkCheckIgnore</code> now: pass an old
+                            flag and the command stops and says what replaced it.
                         </p>
                         <DataTable
                             label="Commands"
@@ -345,35 +424,111 @@ export function Page(): Skrapa.Page {
                             rows={COMMANDS}
                             mono={[0, 2]}
                         />
+                        <p>
+                            <code>dev</code> watches the skrapa root and the assets dir, where a
+                            changed file is copied straight to the output and a deleted one is
+                            removed from it. When its port is busy, it names what holds the port and
+                            how to free it:
+                        </p>
+                        <pre class="cli">
+                            <code>{PORT_BUSY}</code>
+                        </pre>
+                        <p>
+                            If the project root's <code>package.json</code> has a{' '}
+                            <code>postbuild-skrapa</code> script, <code>dev</code> runs it from the
+                            project root after its first build and after every rebuild. Anything
+                            written after the build is not there when the link check runs, so a page
+                            linking to it needs that path in <code>linkCheckIgnore</code>.
+                        </p>
+                        <p>
+                            While an old <code>skrapa.config.ts</code> or{' '}
+                            <code>skrapa.config.json</code> is still in the project, every command
+                            but <code>fix</code> refuses to run and points you at{' '}
+                            <code>npx skrapa fix</code> (<code>init</code> too, unless you pass{' '}
+                            <code>--force</code>). <code>fix</code> validates the old settings,
+                            deletes the old file, carries <code>ignore</code> over as{' '}
+                            <code>linkCheckIgnore</code>, and reports anything it dropped. When
+                            pages used to live in <code>src/</code>, it copies the template&apos;s{' '}
+                            <code>tsconfig.json</code> into <code>src/</code> with the old settings
+                            as its <code>skrapa</code> key, rebased to reach the same places from
+                            there, and points the <code>package.json</code> scripts that ran skrapa
+                            at <code>src/</code>. Otherwise the settings go into the{' '}
+                            <code>tsconfig.json</code> beside the old file, comments intact.
+                        </p>
 
                         <h2 id="structure">What gets scaffolded</h2>
                         <p>
-                            <code>init</code> writes a complete, runnable site. The two files that
-                            matter most are <code>src/index.html</code> (the shell every page
+                            <code>init</code> writes a complete, runnable site. In a new project the
+                            pages sit in <code>src/</code>, with <code>assets/</code>,{' '}
+                            <code>skrapa.d.ts</code> and the project files beside it. The two files
+                            that matter most are <code>src/index.html</code> (the shell every page
                             renders into) and <code>src/index.tsx</code> (the home page):
                         </p>
                         <div class="tree-wrap">
                             <TreeList nodes={TREE} />
                         </div>
+                        <p>
+                            <code>src/tsconfig.json</code> builds to <code>../dist</code> from{' '}
+                            <code>../assets</code>, so the site lands in <code>dist/</code> beside{' '}
+                            <code>src/</code>.
+                        </p>
+
+                        <h2 id="roots">Two roots</h2>
+                        <p>Skrapa works with two directories, one level apart in a new project.</p>
+                        <ul>
+                            <li>
+                                The <strong>skrapa root</strong> is the directory holding a{' '}
+                                <code>tsconfig.json</code> with a <code>skrapa</code> key (
+                                <code>src/</code> in a new project). Skrapa runs from it and reads
+                                only the <code>tsconfig.json</code> there. Pages live under it,{' '}
+                                <code>.skrapa/</code> (scratch space for the compiled output) is
+                                written in it while a build runs, and <code>output</code> and{' '}
+                                <code>assets</code> resolve against it.
+                            </li>
+                            <li>
+                                The <strong>project root</strong> is where the project's own files
+                                live: <code>package.json</code>, <code>.gitignore</code>,{' '}
+                                <code>.github/</code> and <code>skrapa.d.ts</code>. The{' '}
+                                <code>projectRoot</code> setting names it, relative to the skrapa
+                                root. It defaults to <code>"."</code>, and a new project sets{' '}
+                                <code>"../"</code>.
+                            </li>
+                        </ul>
+                        <p>
+                            Every build writes <code>skrapa.d.ts</code> into the project root, so a{' '}
+                            <code>tsconfig.json</code> in a subdirectory lists{' '}
+                            <code>"../skrapa.d.ts"</code> in its <code>include</code>.
+                        </p>
 
                         <h2 id="routing">Pages & routing</h2>
                         <p>
                             Every <code>{'<dir>'}/index.tsx</code> that exports a <code>Page</code>{' '}
-                            function is a page. Its directory, relative to <code>src/</code>, is the
+                            function is a page. Its directory, relative to the skrapa root, is the
                             route: <code>src/about/index.tsx</code> builds{' '}
                             <code>dist/about/index.html</code>. Anything else (components, helpers,{' '}
                             <code>client.ts</code>) is ignored, even if it sits in the same
-                            directory as a page. That's why <code>src/components/button.tsx</code>{' '}
-                            never becomes a route: it's imported by a page, not exported as one.
+                            directory as a page. That's why <code>components/button.tsx</code> never
+                            becomes a route: it's imported by a page, not exported as one.
+                        </p>
+                        <p>
+                            Pages are found anywhere under the skrapa root except under
+                            dot-directories (<code>.skrapa</code>, <code>.git</code>,{' '}
+                            <code>.github</code>), <code>node_modules</code>, the output dir and the
+                            assets dir. A page also has to be compiled: if the <code>include</code>{' '}
+                            in <code>tsconfig.json</code> leaves one out, the build stops and names
+                            the file. And an output dir inside the skrapa root that holds an{' '}
+                            <code>index.tsx</code> (<code>"output": "docs"</code> beside a{' '}
+                            <code>docs/</code> page) is refused rather than cleaned.
                         </p>
 
                         <h2 id="page-type">The Page type</h2>
                         <p>
                             All types are stored in <code>skrapa.d.ts</code>, a managed file skrapa
-                            rewrites on every run, so treat it as read-only. They live under the{' '}
-                            <code>Skrapa</code> namespace, so nothing skrapa ships can collide with
-                            a type of your own. One very important type is <code>Skrapa.Page</code>,
-                            the shape every page's <code>Page()</code> function returns:
+                            rewrites in the project root on every build, so treat it as read-only.
+                            They live under the <code>Skrapa</code> namespace, so nothing skrapa
+                            ships can collide with a type of your own. One very important type is{' '}
+                            <code>Skrapa.Page</code>, the shape every page's <code>Page()</code>{' '}
+                            function returns:
                         </p>
                         <CodeCard
                             name="skrapa.d.ts"
@@ -444,9 +599,9 @@ export function Page(): Skrapa.Page {
                         <h2 id="shell">The HTML shell</h2>
                         <p>
                             Every page renders into an <code>index.html</code> shell: the shared one
-                            at <code>src/index.html</code>, or a page-specific one dropped into that
+                            at the top of the skrapa root, or a page-specific one dropped into that
                             page's own directory. Skrapa walks up from the page's directory to the
-                            input root looking for the nearest <code>index.html</code>, so a page
+                            skrapa root looking for the nearest <code>index.html</code>, so a page
                             without its own shell inherits its closest ancestor's.
                         </p>
                         <p>
@@ -454,8 +609,8 @@ export function Page(): Skrapa.Page {
                             order. The first comes from your config; the other four are the{' '}
                             <code>head</code>, <code>title</code>, <code>shellAttrs</code>, and{' '}
                             <code>body</code> your page's <code>Page()</code> function returned (a
-                            page that returns a bare string supplies only <code>body</code>; the
-                            rest are left untouched):
+                            page that returns bare JSX supplies only <code>body</code>; the rest are
+                            left untouched):
                         </p>
                         <ul>
                             <li>
@@ -498,9 +653,8 @@ export function Page(): Skrapa.Page {
                                 <code>{'{ class: (prev) => `${prev} about` }'}</code>.
                             </li>
                             <li>
-                                <code>Page.body</code> is the returned <code>body</code> string
-                                (empty if omitted), appended immediately before{' '}
-                                <code>{'</body>'}</code>.
+                                <code>Page.body</code> is the returned <code>body</code> JSX (empty
+                                if omitted), appended immediately before <code>{'</body>'}</code>.
                             </li>
                         </ul>
 
@@ -516,7 +670,7 @@ export function Page(): Skrapa.Page {
                             A relative <code>src</code> resolves against the directory of the file
                             it was written in: the shell's own directory for a shell, the page's own
                             directory for page JSX. A leading-<code>/</code> <code>src</code>{' '}
-                            resolves from the input root.
+                            resolves from the skrapa root.
                         </p>
                         <p>
                             One asymmetry to remember: a relative path never reaches the assets
@@ -546,12 +700,19 @@ export function Page(): Skrapa.Page {
                         <p>
                             A <em>root-relative</em> <code>href</code> is the one case that differs
                             from scripts, because a stylesheet can also come from the assets dir.
-                            Skrapa looks in <code>assets/</code> first and copies nothing if the
-                            file is there, since that whole directory is copied across anyway;
-                            otherwise it looks in the input root and copies that file over. Either
-                            way the <code>href</code> is written back naming the same file, with the{' '}
+                            Skrapa looks in the assets dir first and copies nothing if the file is
+                            there, since that whole directory is copied across anyway; otherwise it
+                            looks in the skrapa root and copies that file over. Either way the{' '}
+                            <code>href</code> is written back naming the same file, with the{' '}
                             <a href="/docs/#links">base</a> on it, which at the default base is the
                             path you already wrote.
+                        </p>
+                        <p>
+                            A stylesheet is only ever copied from the site's own source files: never
+                            out of the output dir, the assets dir, a dot-directory or{' '}
+                            <code>node_modules</code>, and never from outside the skrapa root (
+                            <code>../shared.css</code>). A path that lands in one of those is
+                            reported as not found.
                         </p>
                         <p>
                             That is why the scaffolded about page links both.{' '}
@@ -562,7 +723,8 @@ export function Page(): Skrapa.Page {
 
                         <h2 id="assets">Assets</h2>
                         <p>
-                            Everything in <code>assets/</code> (configurable) is copied to the root
+                            Everything in the assets dir (<code>assets/</code> beside{' '}
+                            <code>src/</code> in a new project; configurable) is copied to the root
                             of <code>dist</code> untouched: images, fonts, <code>CNAME</code>, or
                             any hand-written CSS not tied to a specific page.
                         </p>
@@ -584,7 +746,10 @@ export function Page(): Skrapa.Page {
                             built it and 404s on GitHub Pages: a dead download, or a preload and{' '}
                             <code>@font-face</code> pair that quietly falls back to a system font.
                             The check compares against a list of the real filenames instead of
-                            asking the filesystem, so it gives the same answer wherever it runs.
+                            asking the filesystem, so it gives the same answer wherever it runs. Any
+                            other broken reference ends by saying to fix it, or to add its path to{' '}
+                            <code>linkCheckIgnore</code> if something other than the build serves
+                            it.
                         </p>
                         <p>
                             References are read from HTML (<code>href</code>, <code>src</code>,{' '}
@@ -599,19 +764,26 @@ export function Page(): Skrapa.Page {
                             Anything that names a file outside the build is skipped: another origin
                             (<code>https://</code>, <code>//cdn/</code>), a <code>data:</code>,{' '}
                             <code>mailto:</code> or <code>tel:</code> URI, and a bare{' '}
-                            <code>#fragment</code>. For a path something other than the build serves
-                            (a proxied route, a file uploaded out of band) list it under{' '}
-                            <code>ignore</code>:
+                            <code>#fragment</code>.
                         </p>
-                        <CodeCard name="skrapa.config.ts" code={IGNORE_SAMPLE} />
                         <p>
+                            Every other reference is checked, unless its path matches a pattern in{' '}
+                            <code>linkCheckIgnore</code>. That list is for URLs the deployed site
+                            serves but the build does not write: a proxied <code>/api</code> route,
+                            files uploaded to the host by hand, a sitemap generated after the build.
+                        </p>
+                        <CodeCard name="src/tsconfig.json" code={LINK_IGNORE_SAMPLE} />
+                        <p>
+                            Each pattern is a path from the site root, starting with <code>/</code>.{' '}
                             <code>*</code> matches within one path segment, <code>**</code> across
-                            them, and <code>?</code> matches a single character. A trailing{' '}
-                            <code>/**</code> covers the path itself as well, so <code>/api/**</code>{' '}
-                            takes care of a link to <code>/api</code>. A pattern is matched against
-                            the URL as written and against the site-absolute path it resolves to, so
-                            one entry covers <code>/uploads/brief.pdf</code> and a page-relative{' '}
-                            <code>../uploads/brief.pdf</code> alike.
+                            any number of them, <code>?</code> one character, and a trailing{' '}
+                            <code>{'/**'}</code> covers the path itself too, so{' '}
+                            <code>{'/api/**'}</code> also skips a link to <code>/api</code>. A
+                            reference is matched by where it points, not how it was written, so{' '}
+                            <code>{'/uploads/*.pdf'}</code> covers <code>../uploads/brief.pdf</code>{' '}
+                            on a nested page too, and under a base path a pattern matches with or
+                            without the base in front. As a flag the patterns are comma-separated:{' '}
+                            <code>{'--linkCheckIgnore "/api/**,/uploads/*.pdf"'}</code>.
                         </p>
                         <p>
                             In dev the same check runs, but a broken reference is a warning rather
@@ -636,17 +808,43 @@ export function Page(): Skrapa.Page {
 
                         <h2 id="config">Configuration</h2>
                         <p>
-                            <code>skrapa.config.ts</code> in the project root, with all fields
-                            optional:
+                            Settings live under a <code>skrapa</code> key in the skrapa root's{' '}
+                            <code>tsconfig.json</code>, next to the compiler options. The key is
+                            required: <code>"skrapa": true</code> takes every default, and an object
+                            sets the fields it names. A <code>tsconfig.json</code> without it is not
+                            a Skrapa project. A new project's <code>src/tsconfig.json</code>:
                         </p>
-                        <CodeCard name="skrapa.config.ts" code={CONFIG_SAMPLE} />
+                        <CodeCard name="src/tsconfig.json" code={CONFIG_SAMPLE} />
                         <p>
-                            <code>Skrapa.Config</code> is a global from the managed{' '}
-                            <code>skrapa.d.ts</code>, so there is nothing to import. The{' '}
-                            <code>satisfies</code> gets you completion and typo-checking on every
-                            field while keeping the literal types. Node runs the file directly (it
-                            strips the types itself on v24+), so the config is real code: read an
-                            env var, branch on <code>NODE_ENV</code>, compute a value.
+                            Skrapa only ever reads <code>./tsconfig.json</code> in the directory it
+                            runs in, and that directory is the skrapa root: pages live under it, and{' '}
+                            <code>output</code>, <code>assets</code> and <code>projectRoot</code>{' '}
+                            resolve against it. It never walks up from a subdirectory to find one,
+                            and a <code>skrapa</code> key inherited through <code>extends</code> is
+                            not read. Comments and trailing commas are fine, as they are for{' '}
+                            <code>tsc</code>.
+                        </p>
+                        <p>
+                            Every command stops before it does anything when the config has a
+                            problem: a <code>tsconfig.json</code> that is missing or will not parse,
+                            no <code>skrapa</code> key or one that is neither <code>true</code> nor
+                            an object, an unknown key, a value of the wrong type, a{' '}
+                            <code>port</code> outside 1-65535, an empty <code>output</code>,{' '}
+                            <code>assets</code>, <code>host</code> or <code>projectRoot</code>, a{' '}
+                            <code>linkCheckIgnore</code> pattern that does not start with{' '}
+                            <code>/</code>, an old <code>skrapa.config.ts</code> or{' '}
+                            <code>skrapa.config.json</code> beside it, a config flag with no value
+                            after it, or a removed flag. Every problem is listed in the same run, so
+                            one pass fixes them all.
+                        </p>
+                        <p>
+                            <code>compilerOptions.outDir</code> and <code>rootDir</code> are
+                            ignored. Skrapa always runs{' '}
+                            <code>tsc -p tsconfig.json --outDir .skrapa --rootDir .</code> in the
+                            skrapa root, so compiled output lands in <code>.skrapa/</code> beside{' '}
+                            <code>tsconfig.json</code> whatever the file says. That directory is
+                            scratch space: a build deletes it when it finishes (failed builds too),
+                            and <code>dev</code> keeps it for its rebuilds until it stops.
                         </p>
                         <DataTable
                             label="Configuration fields"
@@ -655,25 +853,24 @@ export function Page(): Skrapa.Page {
                             mono={[0, 1]}
                         />
                         <p>
-                            <code>root</code> is really a CLI flag. Skrapa looks for{' '}
-                            <code>skrapa.config.ts</code> in the directory <code>--root</code> names
-                            (the working directory by default), so setting <code>root</code> inside
-                            that file moves where <code>input</code>, <code>output</code> and{' '}
-                            <code>assets</code> resolve, but not where the file itself was found.
+                            Because the config is JSON, it cannot compute a value or read an env
+                            var. Pass a flag for anything that changes per environment. Flags
+                            override the <code>skrapa</code> key, which overrides the defaults:
                         </p>
-                        <p>CLI flags override config file values:</p>
                         <pre class="cli">
-                            <code>{`npx skrapa dev --port 3000\nnpx skrapa build --input app --output public`}</code>
+                            <code>{`npx skrapa dev --port 3000\nnpx skrapa build --output public --base "$BASE"`}</code>
                         </pre>
 
                         <h2 id="deploy">Deploying</h2>
                         <p>
-                            <code>init</code> writes <code>.github/workflows/deploy.yml</code>, a
-                            GitHub Pages workflow that runs{' '}
+                            <code>init</code> writes <code>.github/workflows/skrapa-pages.yml</code>
+                            , a GitHub Pages workflow that runs{' '}
                             <code>npm ci &amp;&amp; npm run build</code> on Node 24 and publishes{' '}
-                            <code>dist/</code> through <code>actions/deploy-pages</code>. Enable it
-                            once under <strong>Settings → Pages → Source → GitHub Actions</strong>;
-                            the workflow already requests the <code>pages: write</code> and{' '}
+                            <code>dist/</code> through <code>actions/deploy-pages</code>. For a site
+                            added to an existing project it runs <code>npm run skrapa:build</code>{' '}
+                            and publishes the site's own <code>dist/</code> instead. Enable it once
+                            under <strong>Settings → Pages → Source → GitHub Actions</strong>; the
+                            workflow already requests the <code>pages: write</code> and{' '}
                             <code>id-token: write</code> permissions it needs.
                         </p>
                         <p>
@@ -702,9 +899,9 @@ export function Page(): Skrapa.Page {
                         <p>
                             One setting catches people out. A project site is served from{' '}
                             <code>https://user.github.io/repo/</code>, not the domain root, so set{' '}
-                            <code>base</code> to <code>&quot;/repo/&quot;</code> in{' '}
+                            <code>base</code> to <code>&quot;/repo/&quot;</code> in the{' '}
                             <a href="/docs/#config">
-                                <code>skrapa.config.ts</code>
+                                <code>skrapa</code> key of <code>tsconfig.json</code>
                             </a>
                             . Skrapa injects it as <code>&lt;base href&gt;</code> and writes it into
                             every path it rewrites for you, so your script and stylesheet tags land

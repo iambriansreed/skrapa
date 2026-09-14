@@ -57,8 +57,8 @@ export function Page(): Skrapa.Page {
                         <ul>
                             <li>A custom JSX runtime that renders to HTML strings at build time</li>
                             <li>
-                                File-based routing: every <code>src/**/index.tsx</code> that exports{' '}
-                                <code>Page</code> becomes a route
+                                File-based routing: every <code>index.tsx</code> that exports{' '}
+                                <code>Page</code> becomes a route, wherever it sits in the site
                             </li>
                             <li>
                                 A dev server with live reload over WebSocket on every file change

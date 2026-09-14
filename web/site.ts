@@ -3,11 +3,11 @@
  * canonical URLs, Open Graph and JSON-LD), the sitemap the build writes, and
  * the social card `npm run og-image` renders.
  *
- * Kept apart from `skrapa.config.ts` on purpose. Its `origin` is where the
- * dev server is reached through a local proxy, not where the site is
- * deployed, and nothing in the config knows the production hostname. That
- * lives in `assets/CNAME` for GitHub Pages and here for everything the pages
- * have to say about themselves.
+ * Kept apart from the `skrapa` key in `web/tsconfig.json` on purpose. Its
+ * `origin` is where the dev server is reached through a local proxy, not
+ * where the site is deployed, and nothing in the config knows the production
+ * hostname. That lives in `web/assets/CNAME` for GitHub Pages and here for
+ * everything the pages have to say about themselves.
  */
 
 /** The production origin, with no trailing slash. */

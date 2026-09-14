@@ -5,7 +5,7 @@ import { absoluteUrl, AUTHOR, GITHUB_URL, NPM_URL, SITE_NAME, SITE_URL, TAGLINE 
  * in one call. Returns the `title` and `head` halves of a `Skrapa.Page`, so a
  * page spreads it: `return { ...seo({ ... }), body: <main>...</main> }`.
  *
- * The shell (`src/index.html`) deliberately carries no description or Open
+ * The shell (`web/index.html`) deliberately carries no description or Open
  * Graph tags of its own. A tag that lives in the shell is the same on every
  * page, and three pages sharing one title and description is what a search
  * engine reads as three copies of one page. Every page therefore goes

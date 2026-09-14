@@ -1,6 +1,10 @@
-import { test, describe } from 'node:test';
+import { after, before, test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { applyTagAttrs } from './cmd-build';
+import { parseJsonc } from './config';
+import { ensureBin, removeTempDir, runBuild, scaffold, tempDir } from '../scripts/fixture';
 
 const shell = (tag = '<html lang="en">') => `<!doctype html>\n${tag}\n<head></head>\n</html>`;
 
@@ -239,5 +243,201 @@ describe('src/bin/cmd-build.test.ts - applyTagAttrs', () => {
         assert.match(out, /style="color:red"/);
         assert.match(out, /lang="en"/);
         assert.match(out, /class="docs"/);
+    });
+});
+
+// The end-to-end cases: real builds, since what is asserted is an exit code and
+// what was or was not left on disk. The harness lives in ../scripts/fixture.ts.
+
+/**
+ * Replace the scaffolded tsconfig.json's skrapa key, merge compilerOptions, and
+ * set any other top-level field.
+ */
+function writeTsconfig(
+    fixture: string,
+    skrapa: unknown,
+    compilerOptions: Record<string, unknown> = {},
+    fields: Record<string, unknown> = {}
+): void {
+    const file = path.join(fixture, 'tsconfig.json');
+    const tsconfig = parseJsonc(fs.readFileSync(file, 'utf-8')) as {
+        compilerOptions: Record<string, unknown>;
+    };
+    tsconfig.compilerOptions = { ...tsconfig.compilerOptions, ...compilerOptions };
+    fs.writeFileSync(file, JSON.stringify({ ...tsconfig, ...fields, skrapa }, null, 4));
+}
+
+const NOT_A_PAGE = 'export const Page = (): Skrapa.Page => <h1>not a page</h1>;\n';
+
+describe('src/bin/cmd-build.test.ts - skrapa build, a config with problems', () => {
+    let fixture: string;
+    let result: { status: number | null; output: string };
+
+    before(() => {
+        ensureBin();
+        fixture = tempDir('build-config-');
+        const write = scaffold(fixture);
+        writeTsconfig(fixture, { prot: 8080, port: 0 });
+        write('skrapa.config.ts', 'export default { input: "src" };\n');
+        write('dist/keep.txt', 'from the last good build');
+
+        result = runBuild(fixture, ['--input', 'src']);
+    });
+
+    after(() => removeTempDir(fixture));
+
+    test('fails the build', () => {
+        assert.equal(result.status, 1, `expected exit 1, got ${result.status}\n${result.output}`);
+    });
+
+    // Fixing them one run at a time is how the second one gets missed.
+    test('names every problem in the one run', () => {
+        for (const named of [
+            'unknown key: prot',
+            '"port" must be an integer',
+            '--input has been removed',
+            'skrapa.config.ts is no longer read',
+        ]) {
+            assert.ok(result.output.includes(named), `expected the message to name ${named}`);
+        }
+    });
+
+    // A config skrapa does not fully understand is not one to act on, even
+    // partly: not the clean, not the types sync, not tsc.
+    test('stops before touching anything', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'dist/keep.txt')), 'the output dir was cleaned');
+        assert.ok(!fs.existsSync(path.join(fixture, 'skrapa.d.ts')), 'skrapa.d.ts was written');
+        assert.ok(!fs.existsSync(path.join(fixture, '.skrapa')), 'tsc ran');
+    });
+});
+
+describe('src/bin/cmd-build.test.ts - skrapa build, a project dir with more than pages in it', () => {
+    let fixture: string;
+    let result: { status: number | null; output: string };
+
+    before(() => {
+        ensureBin();
+        fixture = tempDir('build-project-');
+        const write = scaffold(fixture);
+        // Both are overridden: the page walk relies on .skrapa mirroring the
+        // project dir exactly.
+        writeTsconfig(fixture, { output: 'dist' }, { outDir: './elsewhere', rootDir: './nowhere' });
+        write('about/index.tsx', 'export const Page = (): Skrapa.Page => <h1>about</h1>;\n');
+        write('node_modules/pkg/index.tsx', NOT_A_PAGE);
+        write('.hidden/index.tsx', NOT_A_PAGE);
+        fs.mkdirSync(path.join(fixture, 'public'));
+
+        result = runBuild(fixture);
+    });
+
+    after(() => removeTempDir(fixture));
+
+    test('builds', () => {
+        assert.equal(result.status, 0, `expected exit 0, got ${result.status}\n${result.output}`);
+    });
+
+    test('compiles nothing where outDir and rootDir point', () => {
+        assert.ok(!fs.existsSync(path.join(fixture, 'elsewhere')));
+        assert.ok(!fs.existsSync(path.join(fixture, 'nowhere')));
+    });
+
+    test('builds the pages beside tsconfig.json, and none under node_modules or a dot-dir', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'dist', 'index.html')));
+        assert.ok(fs.existsSync(path.join(fixture, 'dist', 'about', 'index.html')));
+        assert.ok(!fs.existsSync(path.join(fixture, 'dist', 'node_modules')));
+        assert.ok(!fs.existsSync(path.join(fixture, 'dist', '.hidden')));
+    });
+
+    // Scratch space nothing reads once the build is over; a project should not
+    // be left holding it.
+    test('deletes .skrapa once the build is done', () => {
+        assert.ok(!fs.existsSync(path.join(fixture, '.skrapa')));
+    });
+
+    // A dev server rebuilds through a `skrapa build skip-assets` subprocess,
+    // and still needs .skrapa afterwards: tsc's incremental state, and the
+    // manifest its assets watcher reads. Last, since it rebuilds the fixture.
+    test('keeps .skrapa after a dev rebuild', () => {
+        const rebuild = runBuild(fixture, ['skip-assets', 'pretty']);
+
+        assert.equal(rebuild.status, 0, rebuild.output);
+        assert.ok(fs.existsSync(path.join(fixture, '.skrapa', 'about', 'index.js')));
+        assert.ok(fs.existsSync(path.join(fixture, '.skrapa', 'emitted.json')));
+    });
+});
+
+// `output: "docs"` is the usual GitHub Pages setting, and a project can just as
+// easily have a docs/ page. The output dir is never searched for pages, so the
+// page would never build, and cleaning the output dir would delete it.
+describe('src/bin/cmd-build.test.ts - skrapa build, an output dir that holds a page', () => {
+    let fixture: string;
+    let result: { status: number | null; output: string };
+
+    before(() => {
+        ensureBin();
+        fixture = tempDir('build-output-page-');
+        const write = scaffold(fixture);
+        writeTsconfig(fixture, { output: 'docs' });
+        write('docs/index.tsx', NOT_A_PAGE);
+        fs.mkdirSync(path.join(fixture, 'public'));
+
+        result = runBuild(fixture);
+    });
+
+    after(() => removeTempDir(fixture));
+
+    test('refuses to clean it', () => {
+        assert.equal(result.status, 1, `expected exit 1, got ${result.status}\n${result.output}`);
+        assert.match(result.output, /refusing to clean the output dir docs; it holds the page/);
+    });
+
+    test('leaves the page where it was', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'docs', 'index.tsx')));
+    });
+});
+
+// The template's shape: tsconfig.json and the pages in src/ (the skrapa root),
+// with the project root around it one level up.
+describe('src/bin/cmd-build.test.ts - skrapa build, a skrapa root inside the project root', () => {
+    let fixture: string;
+    let result: { status: number | null; output: string };
+
+    before(() => {
+        ensureBin();
+        fixture = tempDir('build-roots-');
+        scaffold(fixture);
+
+        const src = path.join(fixture, 'src');
+        fs.mkdirSync(path.join(src, 'public'), { recursive: true });
+        for (const file of ['tsconfig.json', 'index.html', 'index.tsx']) {
+            fs.renameSync(path.join(fixture, file), path.join(src, file));
+        }
+        writeTsconfig(
+            src,
+            { output: '../dist', projectRoot: '..' },
+            {},
+            { include: ['**/*.ts', '**/*.tsx', '../skrapa.d.ts'] }
+        );
+
+        result = runBuild(src);
+    });
+
+    after(() => removeTempDir(fixture));
+
+    test('builds', () => {
+        assert.equal(result.status, 0, `expected exit 0, got ${result.status}\n${result.output}`);
+    });
+
+    // It belongs to the project, like .github and package.json, and the
+    // tsconfig.json below names it in "include".
+    test('writes skrapa.d.ts into the project root, not the skrapa root', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'skrapa.d.ts')));
+        assert.ok(!fs.existsSync(path.join(fixture, 'src', 'skrapa.d.ts')));
+    });
+
+    test('resolves the output dir against the skrapa root, and leaves no .skrapa in either root', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'dist', 'index.html')));
+        assert.ok(!fs.existsSync(path.join(fixture, 'src', '.skrapa')));
+        assert.ok(!fs.existsSync(path.join(fixture, '.skrapa')));
     });
 });

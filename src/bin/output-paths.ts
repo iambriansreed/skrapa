@@ -246,7 +246,7 @@ export function formatProblem(problem: Problem): string {
                 : []),
             suggestion?.caseOnly
                 ? 'Spell the two the same way: case is part of the URL on a case-sensitive host, and ignored on the machine you tested it on.'
-                : 'Fix the reference, or add it to `ignore` if it is served by something other than the build.',
+                : 'Fix the reference so it names a file the build emits, or add its path to "linkCheckIgnore" if something other than the build serves it.',
         ].join('\n');
     }
 

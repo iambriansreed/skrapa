@@ -117,6 +117,6 @@ jobs:
             contents: read
             pages: write
             id-token: write
-        uses: ./.github/workflows/deploy.yml
+        uses: ./.github/workflows/skrapa-pages.yml
         with:
             ref: ${{ needs.release.outputs.tag }}

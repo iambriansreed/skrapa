@@ -13,7 +13,14 @@ import {
 } from './output-paths';
 import { CWD_DIR } from './utils';
 import { ROOT_DIR } from '../scripts/utils';
-import { caseSkip, ensureBin, runBuild, scaffold, tempDir } from '../scripts/fixture';
+import {
+    caseSkip,
+    ensureBin,
+    removeTempDir,
+    runBuild,
+    scaffold,
+    tempDir,
+} from '../scripts/fixture';
 
 const OUTPUT = path.join(CWD_DIR, 'dist');
 
@@ -86,7 +93,7 @@ describe('src/bin/output-paths.test.ts - emittedPaths', () => {
             const read = readManifest(dir, OUTPUT);
             assert.deepEqual(read.heldBy(path.join(OUTPUT, 'chores/index.html')), page('chores'));
         } finally {
-            fs.rmSync(dir, { recursive: true, force: true });
+            removeTempDir(dir);
         }
     });
 
@@ -166,7 +173,7 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
         write('public/logo.svg', '<svg />');
     });
 
-    after(() => fs.rmSync(root, { recursive: true, force: true }));
+    after(() => removeTempDir(root));
 
     const output = () => path.join(root, 'dist');
 
@@ -226,7 +233,7 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
 
             assert.deepEqual(checkCopy(path.join(upper, 'public'), dist, emittedPaths(dist)), []);
         } finally {
-            fs.rmSync(upper, { recursive: true, force: true });
+            removeTempDir(upper);
         }
     });
 
@@ -246,7 +253,7 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
 
             assert.deepEqual(checkCopy(path.join(exempt, 'public'), dist, emittedPaths(dist)), []);
         } finally {
-            fs.rmSync(exempt, { recursive: true, force: true });
+            removeTempDir(exempt);
         }
     });
 
@@ -277,7 +284,7 @@ describe('src/bin/output-paths.test.ts - checkCopy', () => {
 
             assert.equal(problems.length, 1);
         } finally {
-            fs.rmSync(twoCase, { recursive: true, force: true });
+            removeTempDir(twoCase);
         }
     });
 
@@ -310,11 +317,11 @@ describe('src/bin/output-paths.test.ts - skrapa build, asset shadowing a page', 
         const write = scaffold(fixture);
 
         write(
-            'src/chores/index.html',
+            'chores/index.html',
             '<!doctype html>\n<html><head></head><body><script src="./client.ts"></script></body></html>'
         );
-        write('src/chores/client.ts', 'console.log("chores client");\n');
-        write('src/chores/index.tsx', 'export const Page = (): Skrapa.Page => <h1>chores</h1>;\n');
+        write('chores/client.ts', 'console.log("chores client");\n');
+        write('chores/index.tsx', 'export const Page = (): Skrapa.Page => <h1>chores</h1>;\n');
 
         // The stale hand-written prototype, and a stale bundle beside it.
         write('public/chores/index.html', '<h1>months-old prototype</h1>');
@@ -323,20 +330,23 @@ describe('src/bin/output-paths.test.ts - skrapa build, asset shadowing a page', 
         result = runBuild(fixture);
     });
 
-    after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+    after(() => removeTempDir(fixture));
 
     test('fails the build rather than reporting success', () => {
         assert.equal(result.status, 1, `expected exit 1, got ${result.status}\n${result.output}`);
     });
 
+    // It fails after tsc has written .skrapa, and a failed build is still done.
+    test('deletes .skrapa all the same', () => {
+        assert.ok(!fs.existsSync(path.join(fixture, '.skrapa')));
+    });
+
     test('names both sources and the output path they meet at', () => {
         assert.match(result.output, /Asset would overwrite generated page:/);
-        for (const named of [
-            'src/chores/index.html',
-            'src/chores/index.tsx',
-            'public/chores/index.html',
-            'dist/chores/index.html',
-        ]) {
+        // Matched as the whole row: a bare `chores/index.html` is also inside
+        // the asset and output paths below, so it would pass without the source.
+        assert.match(result.output, /generated from\s+chores\/index\.html \+ chores\/index\.tsx/);
+        for (const named of ['public/chores/index.html', 'dist/chores/index.html']) {
             assert.ok(result.output.includes(named), `expected the message to name ${named}`);
         }
     });
@@ -345,11 +355,8 @@ describe('src/bin/output-paths.test.ts - skrapa build, asset shadowing a page', 
     // found on the next run, one at a time.
     test('reports the shadowed client bundle in the same run', () => {
         assert.match(result.output, /Asset would overwrite generated script:/);
-        for (const named of [
-            'src/chores/client.ts',
-            'public/chores/client.js',
-            'dist/chores/client.js',
-        ]) {
+        assert.match(result.output, /generated from\s+chores\/client\.ts/);
+        for (const named of ['public/chores/client.js', 'dist/chores/client.js']) {
             assert.ok(result.output.includes(named), `expected the message to name ${named}`);
         }
     });
@@ -376,19 +383,16 @@ describe('src/bin/output-paths.test.ts - skrapa build, a mixed-case page directo
         fixture = tempDir('build-case-');
         const write = scaffold(fixture);
 
-        write('src/About/index.tsx', 'export const Page = (): Skrapa.Page => <h1>about</h1>;\n');
+        write('About/index.tsx', 'export const Page = (): Skrapa.Page => <h1>about</h1>;\n');
         // Linked with the spelling it is built under, which is all that was
         // ever actually at stake.
-        write(
-            'src/index.tsx',
-            'export const Page = (): Skrapa.Page => <a href="About/">about</a>;\n'
-        );
+        write('index.tsx', 'export const Page = (): Skrapa.Page => <a href="About/">about</a>;\n');
         write('public/Logo.svg', '<svg />');
 
         result = runBuild(fixture);
     });
 
-    after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+    after(() => removeTempDir(fixture));
 
     test('builds, since every reference to it agrees on the spelling', () => {
         assert.equal(result.status, 0, `expected exit 0, got ${result.status}\n${result.output}`);

@@ -1,7 +1,8 @@
 /**
  * End-to-end test: runs `src/scripts/dev.ts test`, which builds & links
- * skrapa, scaffolds a fresh project from `template/` into `.tmp/`, and
- * starts its dev server on the default port (skipping the root dev server
+ * skrapa, scaffolds a fresh project from `template/` into `.tmp/project` (the
+ * way `skrapa init --new` does), and starts its dev server from its skrapa
+ * root, `.tmp/project/src`, on the default port (skipping the web/ dev server
  * and file watchers, since a one-shot test run has no use for either). It then
  * verifies the site, including that the about page picks up its own
  * index.html/style.css/client.ts instead of the root template's.

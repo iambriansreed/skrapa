@@ -1,7 +1,7 @@
 /**
  * `skrapa page` scaffolds a new page.
  *
- * Creates `<parent>/<slug>/` in the skrapa root with four files: `index.tsx`
+ * Creates `<parent>/<slug>/` in the source dir with four files: `index.tsx`
  * (the `Page`), its own `index.html` shell, a `style.css`, and a `client.ts`.
  * The pretty name is slugified into the directory name and used as the page's
  * `<h1>`/`<title>`. Existing files are never overwritten.
@@ -49,21 +49,21 @@ export type PagePlan = {
  * @param opts
  * @param opts.name
  * @param opts.parent
- * @param opts.skrapaRoot - absolute skrapa root, the dir holding tsconfig.json
+ * @param opts.sourceRoot - absolute source dir, where the pages live
  * @param opts.notSource - absolute dirs that are not source (output, assets)
  * @param opts.globalStylesheet - whether a `/style.css` exists for the shell to
- *   link, in the assets dir or at the top of the skrapa root
- * @param opts.homePage - whether the skrapa root has an `index.tsx` to link home to
+ *   link, in the assets dir or at the top of the source dir
+ * @param opts.homePage - whether the source dir has an `index.tsx` to link home to
  */
 export function planPage(opts: {
     name: string;
     parent?: string;
-    skrapaRoot: string;
+    sourceRoot: string;
     notSource?: readonly string[];
     globalStylesheet?: boolean;
     homePage?: boolean;
 }): PagePlan {
-    const { name, skrapaRoot } = opts;
+    const { name, sourceRoot } = opts;
 
     const slug = slugify(name);
     if (!slug) throw new Error(`"${name}" has no letters or numbers to build a page name from.`);
@@ -73,21 +73,21 @@ export function planPage(opts: {
     const parent = path.posix.normalize((opts.parent ?? '').replace(/^\/+|\/+$/g, ''));
 
     // After normalizing, a parent that still climbs (`..`, `a/../../b`) would
-    // scaffold outside the skrapa root: files land in a surprising place and
-    // the page never builds, since the build only scans the skrapa root.
+    // scaffold outside the source dir: files land in a surprising place and
+    // the page never builds, since the build only scans the source dir.
     // Refuse it rather than write somewhere the user did not mean.
     if (parent === '..' || parent.startsWith('../')) {
         throw new Error(
-            `parent "${opts.parent}" points outside the skrapa root; pages must live beside tsconfig.json.`
+            `parent "${opts.parent}" points outside the source dir; pages must live inside it.`
         );
     }
     const route = path.posix.join(parent, slug);
     const urlPath = `/${route}/`;
-    const dir = path.join(skrapaRoot, parent, slug);
+    const dir = path.join(sourceRoot, parent, slug);
 
-    // Inside the skrapa root but somewhere the build skips (the output dir, a
+    // Inside the source dir but somewhere the build skips (the output dir, a
     // dot-dir, node_modules): the same page that never builds.
-    if (isSkippedPath(skrapaRoot, dir, opts.notSource)) {
+    if (isSkippedPath(sourceRoot, dir, opts.notSource)) {
         throw new Error(
             `"${route}" is inside a directory skrapa does not build pages from (the output or assets dir, node_modules, or a dot-dir).`
         );
@@ -161,23 +161,24 @@ export function page(overrideConfig?: Skrapa.Config): void {
     }
 
     // Same config precedence and validation as the other commands (see
-    // config.ts); page only needs the skrapa root and what is not source.
+    // config.ts); page only needs the source dir and what is not source.
     const { config, skrapaRoot } = loadConfig(overrideConfig);
     const assets = path.resolve(skrapaRoot, config.assets);
+    const sourceRoot = path.resolve(skrapaRoot, config.source);
 
     let plan: PagePlan;
     try {
         plan = planPage({
             name,
             parent,
-            skrapaRoot,
+            sourceRoot,
             notSource: [path.resolve(skrapaRoot, config.output), assets],
             // The two places the build looks for a root-relative stylesheet
             // (see rewrite-shell-imports.ts), in the same order.
-            globalStylesheet: [assets, skrapaRoot].some((dir) =>
+            globalStylesheet: [assets, sourceRoot].some((dir) =>
                 fs.existsSync(path.join(dir, 'style.css'))
             ),
-            homePage: fs.existsSync(path.join(skrapaRoot, 'index.tsx')),
+            homePage: fs.existsSync(path.join(sourceRoot, 'index.tsx')),
         });
     } catch (err) {
         log.error(`Error: ${(err as Error).message}`);

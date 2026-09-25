@@ -1,15 +1,7 @@
 {
     "name": "skrapa",
     "version": "0.8.0",
-    "author": "iambriansreed",
-    "homepage": "https://skrapa.iambrian.com",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/iambriansreed/skrapa.git"
-    },
-    "bugs": {
-        "url": "https://github.com/iambriansreed/skrapa/issues"
-    },
+    "description": "Build static sites with TypeScript JSX templates and TypeScript client-side code. No framework, no virtual DOM, no config. A single zero-dependency script, run with npx.",
     "keywords": [
         "static-site-generator",
         "ssg",
@@ -20,6 +12,27 @@
         "zero-config",
         "npx"
     ],
+    "homepage": "https://skrapa.iambrian.com",
+    "bugs": {
+        "url": "https://github.com/iambriansreed/skrapa/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/iambriansreed/skrapa.git"
+    },
+    "license": "MIT",
+    "author": "iambriansreed",
+    "bin": {
+        "skrapa": "bin/index.js"
+    },
+    "files": [
+        "bin/",
+        "template/",
+        "skrapa.d.ts"
+    ],
+    "engines": {
+        "node": ">=24"
+    },
     "scripts": {
         "build": "npx tsx src/scripts/build.ts",
         "dev": "npx tsx src/scripts/dev.ts",
@@ -35,15 +48,6 @@
         "prepack": "npm run build && rm -rf template/.skrapa template/dist",
         "release": "commit-and-tag-version && npm run build && git push --follow-tags"
     },
-    "files": [
-        "bin/",
-        "template/",
-        "skrapa.d.ts"
-    ],
-    "bin": {
-        "skrapa": "bin/index.js"
-    },
-    "license": "MIT",
     "devDependencies": {
         "@eslint/js": "^9.39.4",
         "@eslint/json": "^2.0.1",
@@ -58,9 +62,5 @@
         "stylelint-config-standard": "^40.0.0",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.62.0"
-    },
-    "engines": {
-        "node": ">=24"
-    },
-    "description": "Build static sites with TypeScript JSX templates and TypeScript client-side code. No framework, no virtual DOM, no config. A single zero-dependency script, run with npx."
+    }
 }

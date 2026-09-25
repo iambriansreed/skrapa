@@ -214,6 +214,11 @@ const CONFIG = [
         '"."',
         'The project root, where package.json, .gitignore and .github live and skrapa.d.ts is written',
     ],
+    [
+        'source',
+        '"."',
+        'Where the pages live, when tsconfig.json sits in the project root instead. Not with projectRoot',
+    ],
 ];
 
 // The message, verbatim. Both spellings on screen together is the whole point
@@ -242,7 +247,7 @@ const COMMANDS = [
     [
         'npx skrapa build',
         'Render the site to static HTML in the output dir.',
-        '--output, --assets, --base, --linkCheckIgnore, --projectRoot',
+        '--output, --assets, --base, --linkCheckIgnore, --projectRoot, --source',
     ],
     [
         'npx skrapa page "<name>" [parent]',

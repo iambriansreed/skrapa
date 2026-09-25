@@ -100,139 +100,71 @@ declare global {
         type Origin = `${string}://${string}` | '';
 
         /**
-         * What you write under the `skrapa` key of a tsconfig.json. The key is
-         * required: `"skrapa": true` takes every default, and an object sets the
-         * fields it names. A field left out takes its default, and a CLI flag
-         * of the same name beats whatever is here.
+         * The `skrapa` key of a tsconfig.json. Required: `true` for every
+         * default, or an object of settings. Every path is relative to
+         * wherever the tsconfig.json is; a CLI flag of the same name
+         * overrides it.
          *
-         *     {
-         *         "skrapa": { "output": "../dist", "projectRoot": "../" },
-         *         "compilerOptions": { ... },
-         *         "include": [..., "../skrapa.d.ts"]
-         *     }
+         *     { "skrapa": { "output": "../dist", "projectRoot": "../" } }
          *
-         * There are two roots. The directory holding the tsconfig.json is the
-         * skrapa root: skrapa runs from it, the pages live in it, and every path
-         * here resolves against it. The project root ({@link Config.projectRoot})
-         * is where the project's own files live: `.github/`, `.gitignore`,
-         * `package.json`, and this file.
-         *
-         * An unknown key or an invalid value stops every command before it does
-         * anything. `compilerOptions.outDir` and `rootDir` are ignored: skrapa
-         * always compiles to `.skrapa/` in the skrapa root, scratch space a build
-         * deletes when it finishes and `dev` deletes when it stops.
+         * skrapa always compiles to `.skrapa/` beside the tsconfig.json;
+         * `compilerOptions.outDir`/`rootDir` are ignored.
          */
         type Config = {
             /**
-             * Output directory for built files. Created if it does not exist.
-             *
-             * In dev mode this directory is served, and watched so a change
-             * triggers a reload.
-             *
-             * Relative to the skrapa root, the directory holding tsconfig.json.
-             * A site in `src/` that builds beside it sets `"../dist"`.
+             * Build output dir. Served and live-reloaded in dev mode.
              * @default "dist"
              */
             output?: string;
             /**
-             * Static files copied to the output directory as-is, for things the
-             * input references but does not import (images, fonts). Skipped with
-             * a warning if the directory does not exist.
-             *
-             * In dev mode a created or changed file here is copied straight
-             * through, without a full rebuild, and a deleted one is removed from
-             * the output.
-             *
-             * The copy runs after the pages are rendered, so a file in here
-             * whose path lands on a generated one would replace it. The build
-             * fails instead, naming both sources and the output path; in dev
-             * mode that copy is skipped and logged, leaving the server up.
-             *
-             * Relative to the skrapa root, the directory holding tsconfig.json.
+             * Static files copied to output as-is; copied live in dev mode.
              * @default "assets"
              */
             assets?: string;
             /**
-             * Port for the dev server. If it is already in use, dev logs an
-             * error and exits rather than silently picking another.
+             * Dev server port. Errors rather than picking another if it's taken.
              * @default 8080
              */
             port?: number;
             /**
-             * Network interface the dev server binds to. Use `"0.0.0.0"` to
-             * accept connections from other devices on the network.
-             *
-             * This is the bind address only. To change the URL the site is
-             * reached* at, see {@link Config.origin}.
+             * Dev server bind address. See {@link Config.origin} for the reachable URL.
              * @default "localhost"
              */
             host?: string;
             /**
-             * Public origin the dev server is reached at when something sits in
-             * front of it, e.g. a reverse proxy or tunnel mapping
-             * `"https://dev.localhost"` to `"localhost:8080"`. Include the
-             * scheme; the port is optional, so an origin with no port produces
-             * URLs with no port.
-             *
-             * Cosmetic only: it changes the URL logged at startup, not what the
-             * server binds to. Live reload needs nothing set here, since the
-             * injected client derives its WebSocket URL from the page's own
-             * location. The proxy does have to forward WebSocket upgrade
-             * requests on `/hmr`.
+             * Public origin behind a proxy/tunnel, e.g. `"https://dev.localhost"`.
+             * Cosmetic: only changes the logged URL.
              * @default ""
              */
             origin?: Origin;
             /**
-             * Base URL path the site is served from, injected as `<base href>`
-             * into every page's `<head>` so relative asset and link URLs resolve
-             * from nested pages (e.g. `/about/`) rather than 404ing at
-             * `/about/asset.svg`.
-             *
-             * For a GitHub Pages project site served under a subpath, set it to
-             * the repo name, e.g. `"/my-site/"`. A trailing slash is added if
-             * missing. Paths skrapa rewrites carry it; a root-relative URL you
-             * write by hand has to carry it too, since `<base href>` does not
-             * apply to those.
+             * Base path the site is served from, injected as `<base href>`.
+             * Set for a subpath deploy, e.g. GitHub Pages: `"/my-site/"`.
+             * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/base
              * @default "/"
              */
             base?: BasePath;
             /**
-             * URL paths the link check skips: things the deployed site serves
-             * that the build does not write, such as a proxied API, files
-             * uploaded to the host by hand, or a sitemap generated after the
-             * build.
+             * URL paths the link check skips (a proxied API, hand-uploaded
+             * files, a generated sitemap). `*` matches one path segment, `**`
+             * any number, a trailing `/**` also covers the path itself.
              *
-             *     "linkCheckIgnore": ["/api/**", "/uploads/*.pdf", "/sitemap.xml"]
-             *
-             * Every other local `href`, `src` and `url()` in the built site has
-             * to name a file the build wrote, or the build fails.
-             *
-             * Each pattern is a path from the site root and starts with `/`.
-             * `*` matches within one path segment, `**` across any number of
-             * them, `?` one character. A trailing `/**` covers the path itself
-             * too, so `/api/**` also skips a link to `/api`. A reference is
-             * matched by where it points, not how it was written, so
-             * `/uploads/*.pdf` covers `../uploads/brief.pdf` on a nested page
-             * as well. Under a {@link Config.base}, a pattern matches with or
-             * without the base in front.
-             *
-             * As a flag, comma-separated:
-             * `--linkCheckIgnore "/api/**,/uploads/*.pdf"`.
+             *     ["/api/**", "/uploads/*.pdf"]
              * @default []
              */
             linkCheckIgnore?: readonly string[];
             /**
-             * The project root: where the project's own files live, as opposed
-             * to the site's. `skrapa init` puts `.github/workflows/skrapa-pages.yml`,
-             * the `.gitignore` entries and the `package.json` scripts here, and
-             * every build writes this file, `skrapa.d.ts`, here, so a tsconfig.json
-             * in a subdirectory lists it in `include`.
-             *
-             * Relative to the skrapa root, the directory holding tsconfig.json.
-             * A site in `src/` sets `"../"`.
-             * @default "."
+             * Where project files (`.github/`, `.gitignore`, `package.json`,
+             * `skrapa.d.ts`) live, when tsconfig.json sits in the source dir
+             * instead. Set at most one of `projectRoot`/`source`, never both.
              */
             projectRoot?: string;
+            /**
+             * Where the pages live, when tsconfig.json sits in the project
+             * root instead. Set at most one of `projectRoot`/`source`, never
+             * both.
+             */
+            source?: string;
         };
     }
 

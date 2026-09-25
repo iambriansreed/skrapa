@@ -255,6 +255,14 @@ describe('src/bin/config.test.ts - readConfig', () => {
         });
     });
 
+    test('source defaults to the skrapa root and can be set alone', () => {
+        withArgv([], () => {
+            assert.equal(readConfig(withKey(true)).config?.source, '.');
+            assert.equal(readConfig(withKey({ source: 'src' })).config?.source, 'src');
+            assert.deepEqual(readConfig(withKey({ source: './', projectRoot: '.' })).problems, []);
+        });
+    });
+
     test('reads a tsconfig.json that has comments and trailing commas', () => {
         const dir = tmpProject('{\n    // dev\n    "skrapa": { "port": 4044, },\n}\n');
         withArgv([], () => assert.equal(readConfig(dir).config?.port, 4044));
@@ -376,6 +384,8 @@ describe('src/bin/config.test.ts - readConfig, what stops a command', () => {
             [{ host: null }, /"host" must be a non-empty string/],
             [{ base: 1 }, /"base" must be a string/],
             [{ projectRoot: '' }, /"projectRoot" must be a non-empty string/],
+            [{ source: '' }, /"source" must be a non-empty string/],
+            [{ source: 'src', projectRoot: '..' }, /"source" and "projectRoot" cannot both be set/],
             [{ linkCheckIgnore: 5 }, /"linkCheckIgnore" must be a list of URL paths/],
             [{ linkCheckIgnore: ['/api/**', 7] }, /"linkCheckIgnore" must be a list of URL paths/],
             [{ linkCheckIgnore: ['api/**'] }, /"linkCheckIgnore" patterns must start with "\/"/],

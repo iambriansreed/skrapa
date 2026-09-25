@@ -109,6 +109,7 @@ export const CONFIG_KEYS: ConfigKey[] = [
     'base',
     'linkCheckIgnore',
     'projectRoot',
+    'source',
 ];
 
 /**
@@ -125,6 +126,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     base: '/',
     linkCheckIgnore: [],
     projectRoot: '.',
+    source: '.',
 } as const;
 
 /**

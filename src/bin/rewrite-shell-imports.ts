@@ -23,8 +23,10 @@ export const ATTR = `[^\\s"'>/=]+(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s"'>\`]+))?`
  * wrote.
  */
 export type RewriteDirs = {
-    /** Absolute skrapa root, where the source `index.html` and CSS live. */
+    /** Absolute skrapa root, where tsc runs and `compiled` mirrors. */
     skrapaRoot: string;
+    /** Absolute source dir, where the source `index.html` and CSS live. */
+    source: string;
     /** Absolute output dir the build writes to. */
     output: string;
     /** Absolute assets dir, or `''` when the project has none. */
@@ -159,7 +161,7 @@ export function rewriteShellImports(
     html: string,
     sourceDir: string,
     dirs: RewriteDirs,
-    referencedIn = path.join(dirs.skrapaRoot, sourceDir, 'index.html')
+    referencedIn = path.join(dirs.source, sourceDir, 'index.html')
 ): string {
     return html.replace(IMPORT_TAG_RE, (tag: string, scriptAttrs?: string, linkAttrs?: string) => {
         // Exactly one alternative matched, so exactly one group is defined. A
@@ -194,8 +196,8 @@ export function rewriteShellImports(
         // can also hold the output and assets dirs, dot-dirs and node_modules,
         // and a path can climb out of it (`../x.css`): copying from any of
         // those would copy the build into itself, or a file from elsewhere.
-        const sourcePath = path.join(dirs.skrapaRoot, rel);
-        const isSource = !isSkippedPath(dirs.skrapaRoot, sourcePath, [dirs.output, dirs.assets]);
+        const sourcePath = path.join(dirs.source, rel);
+        const isSource = !isSkippedPath(dirs.source, sourcePath, [dirs.output, dirs.assets]);
 
         // Rewrites only the one attribute; every other one on the tag, and the
         // tag's own shape (`/>` or a closing tag), survives as authored. The
@@ -206,7 +208,8 @@ export function rewriteShellImports(
 
         if (isScript) {
             const outId = rel.replace(/\.tsx?$/, '.js');
-            const bundle = bundleModules(path.join(dirs.compiled, outId), true);
+            const compiledId = path.relative(dirs.skrapaRoot, path.join(dirs.source, outId));
+            const bundle = bundleModules(path.join(dirs.compiled, compiledId), true);
             if (bundle === null) {
                 log.warn(`Client entry not found: ${outId}. Skipping.`);
                 return tag;
@@ -214,7 +217,7 @@ export function rewriteShellImports(
             writeOut(
                 dirs,
                 path.join(dirs.output, outId),
-                { kind: 'script', sources: [path.join(dirs.skrapaRoot, rel)] },
+                { kind: 'script', sources: [sourcePath] },
                 (to) => fs.writeFileSync(to, bundle)
             );
             return withResolvedPath(outId);

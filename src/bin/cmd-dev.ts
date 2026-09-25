@@ -27,7 +27,14 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 
 /** The config keys a rebuild reads. port/host/origin belong to the server. */
-const BUILD_KEYS = ['output', 'assets', 'base', 'linkCheckIgnore', 'projectRoot'] as const;
+const BUILD_KEYS = [
+    'output',
+    'assets',
+    'base',
+    'linkCheckIgnore',
+    'projectRoot',
+    'source',
+] as const;
 
 /**
  * The flags to hand the `skrapa build` subprocess each rebuild runs.
@@ -469,9 +476,9 @@ export async function dev(overrideConfig?: Skrapa.Config): Promise<void> {
     // output, the manifest), and an output dir inside it, so reacting to those
     // would rebuild forever. The assets dir has its own watcher below.
     const notSource = [directory.output, directory.assets];
-    fs.watch(directory.skrapaRoot, { recursive: true }, (_event, filename) => {
-        const changed = filename && path.join(directory.skrapaRoot, filename);
-        if (changed && isSkippedPath(directory.skrapaRoot, changed, notSource)) return;
+    fs.watch(directory.source, { recursive: true }, (_event, filename) => {
+        const changed = filename && path.join(directory.source, filename);
+        if (changed && isSkippedPath(directory.source, changed, notSource)) return;
         if (sourceTimer) clearTimeout(sourceTimer);
         sourceTimer = setTimeout(triggerBuild, 100);
     });

@@ -25,6 +25,7 @@ before(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'skrapa-rewrite-'));
     dirs = {
         skrapaRoot: path.join(root, 'src'),
+        source: path.join(root, 'src'),
         output: path.join(root, 'dist'),
         assets: path.join(root, 'assets'),
         compiled: path.join(root, 'compiled'),

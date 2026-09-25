@@ -416,6 +416,16 @@ function normalizeConfig(raw: Record<ConfigKey, unknown>): {
         );
     }
 
+    // tsconfig.json has to sit at one of the two roots, so at most one of them
+    // can point somewhere else.
+    const away = (key: 'source' | 'projectRoot') =>
+        typeof raw[key] === 'string' && path.posix.normalize(raw[key] as string) !== '.';
+    if (away('source') && away('projectRoot')) {
+        problems.push(
+            '"source" and "projectRoot" cannot both be set: tsconfig.json has to sit in the source dir or in the project root. Set one of them, or move tsconfig.json.'
+        );
+    }
+
     return {
         config: {
             output: text('output'),
@@ -426,6 +436,7 @@ function normalizeConfig(raw: Record<ConfigKey, unknown>): {
             base: base as Skrapa.BasePath,
             linkCheckIgnore,
             projectRoot: text('projectRoot'),
+            source: text('source'),
         },
         problems,
     };

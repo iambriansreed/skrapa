@@ -15,7 +15,7 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
     });
 
     test('planPage places a page in the project dir and fills its four files', () => {
-        const plan = planPage({ name: 'About Us', skrapaRoot: '/proj' });
+        const plan = planPage({ name: 'About Us', sourceRoot: '/proj' });
 
         assert.equal(plan.slug, 'about-us');
         assert.equal(plan.route, 'about-us');
@@ -37,14 +37,14 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
     // Either link to nothing fails the next build's link check: /style.css in a
     // project with no global stylesheet, or a home link with no home page.
     test('planPage links the global stylesheet and the home page only when they exist', () => {
-        const bare = planPage({ name: 'Contact', skrapaRoot: '/proj' });
+        const bare = planPage({ name: 'Contact', sourceRoot: '/proj' });
         assert.doesNotMatch(bare.files['index.html'], /href="\/style\.css"/);
         assert.match(bare.files['index.html'], /href="\.\/style\.css"/);
         assert.doesNotMatch(bare.files['index.tsx'], /Home/);
 
         const full = planPage({
             name: 'Contact',
-            skrapaRoot: '/proj',
+            sourceRoot: '/proj',
             globalStylesheet: true,
             homePage: true,
         });
@@ -56,12 +56,12 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
     // Under a base like /repo/, a hand-written `/` is the domain root, where
     // the site is not. A relative link resolves through the page's <base href>.
     test('planPage writes the home link relative, so it resolves under any base', () => {
-        const plan = planPage({ name: 'Contact', skrapaRoot: '/proj', homePage: true });
+        const plan = planPage({ name: 'Contact', sourceRoot: '/proj', homePage: true });
         assert.doesNotMatch(plan.files['index.tsx'], /href="\/"/);
     });
 
     test('planPage nests under a parent route and strips surrounding slashes', () => {
-        const plan = planPage({ name: 'First Post', parent: '/blog/', skrapaRoot: '/proj' });
+        const plan = planPage({ name: 'First Post', parent: '/blog/', sourceRoot: '/proj' });
 
         assert.equal(plan.route, 'blog/first-post');
         assert.equal(plan.urlPath, '/blog/first-post/');
@@ -70,7 +70,7 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
 
     test('planPage throws when the name has no usable characters', () => {
         assert.throws(
-            () => planPage({ name: '@#$', skrapaRoot: '/proj' }),
+            () => planPage({ name: '@#$', sourceRoot: '/proj' }),
             /no letters or numbers/
         );
     });
@@ -82,15 +82,15 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
     test('planPage refuses a parent that escapes the project dir', () => {
         for (const parent of ['..', '../outside', 'a/../../b', 'a/b/../../../c']) {
             assert.throws(
-                () => planPage({ name: 'Post', parent, skrapaRoot: '/proj' }),
-                /outside the skrapa root/,
+                () => planPage({ name: 'Post', parent, sourceRoot: '/proj' }),
+                /outside the source dir/,
                 `parent ${JSON.stringify(parent)} should throw`
             );
         }
     });
 
     test('planPage allows interior ".." that stays inside the project dir', () => {
-        const plan = planPage({ name: 'Post', parent: 'a/../blog', skrapaRoot: '/proj' });
+        const plan = planPage({ name: 'Post', parent: 'a/../blog', sourceRoot: '/proj' });
         assert.equal(plan.route, 'blog/post');
         assert.equal(plan.dir, path.join('/proj', 'blog', 'post'));
     });
@@ -109,7 +109,7 @@ describe('src/bin/cmd-page.test.ts - slugify, planPage', () => {
         ];
         for (const [name, parent] of cases) {
             assert.throws(
-                () => planPage({ name, parent, skrapaRoot: '/proj', notSource }),
+                () => planPage({ name, parent, sourceRoot: '/proj', notSource }),
                 /does not build pages from/,
                 `${name} under ${parent} should throw`
             );

@@ -441,3 +441,53 @@ describe('src/bin/cmd-build.test.ts - skrapa build, a skrapa root inside the pro
         assert.ok(!fs.existsSync(path.join(fixture, '.skrapa')));
     });
 });
+
+// The opposite shape: tsconfig.json beside the project files, the pages one
+// level down in src/ (`source`).
+describe('src/bin/cmd-build.test.ts - skrapa build, a source dir below tsconfig.json', () => {
+    let fixture: string;
+    let result: { status: number | null; output: string };
+
+    before(() => {
+        ensureBin();
+        fixture = tempDir('build-source-');
+        const write = scaffold(fixture);
+
+        const src = path.join(fixture, 'src');
+        fs.mkdirSync(path.join(src, 'about'), { recursive: true });
+        fs.mkdirSync(path.join(fixture, 'public'));
+        for (const file of ['index.html', 'index.tsx']) {
+            fs.renameSync(path.join(fixture, file), path.join(src, file));
+        }
+        write(
+            'src/about/index.tsx',
+            'export const Page = (): Skrapa.Page => <script src="./client.ts"></script>;\n'
+        );
+        write('src/about/client.ts', 'console.log("about");\n');
+        writeTsconfig(fixture, { output: 'dist', source: 'src' });
+
+        result = runBuild(fixture);
+    });
+
+    after(() => removeTempDir(fixture));
+
+    test('builds', () => {
+        assert.equal(result.status, 0, `expected exit 0, got ${result.status}\n${result.output}`);
+    });
+
+    // Pages are routed relative to the source dir, not to tsconfig.json.
+    test('routes pages relative to the source dir', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'dist', 'index.html')));
+        assert.ok(fs.existsSync(path.join(fixture, 'dist', 'about', 'index.html')));
+        assert.ok(!fs.existsSync(path.join(fixture, 'dist', 'src')));
+    });
+
+    test('bundles a client script from below the source dir', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'dist', 'about', 'client.js')));
+    });
+
+    test('writes skrapa.d.ts beside tsconfig.json, not into the source dir', () => {
+        assert.ok(fs.existsSync(path.join(fixture, 'skrapa.d.ts')));
+        assert.ok(!fs.existsSync(path.join(fixture, 'src', 'skrapa.d.ts')));
+    });
+});

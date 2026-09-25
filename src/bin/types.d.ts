@@ -30,6 +30,9 @@ declare global {
         linkCheckIgnore: readonly string[];
         /** Relative to the skrapa root, as written. */
         projectRoot: string;
+        /** Relative to the skrapa root, as written. */
+        source: string;
+        /** Options:  */
     };
 
     /** The config keys a `--flag value` pair on the command line can set. */
@@ -38,8 +41,10 @@ declare global {
     type InitContext = {
         /** All absolute. */
         directory: {
-            /** The dir holding tsconfig.json, where the pages live. */
+            /** The dir holding tsconfig.json, where tsc runs and .skrapa is written. */
             skrapaRoot: string;
+            /** Where the pages live: the skrapa root unless `source` says otherwise. */
+            source: string;
             /** Where .github, .gitignore, package.json and skrapa.d.ts live. */
             projectRoot: string;
             output: string;

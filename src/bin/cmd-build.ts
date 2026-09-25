@@ -71,6 +71,7 @@ function initContext(overrideConfig?: Skrapa.Config): InitContext {
     const WORKING_DIR = path.join(skrapaRoot, '.skrapa');
     const output = path.resolve(skrapaRoot, config.output);
     const assets = path.resolve(skrapaRoot, config.assets);
+    const source = path.resolve(skrapaRoot, config.source);
 
     if (!fs.existsSync(output)) {
         fs.mkdirSync(output, { recursive: true });
@@ -85,7 +86,7 @@ function initContext(overrideConfig?: Skrapa.Config): InitContext {
         log.gray(`Assets directory (${assets}) does not exist. Continuing without copying assets.`);
     }
 
-    return { directory: { skrapaRoot, projectRoot, output, assets }, config, WORKING_DIR };
+    return { directory: { skrapaRoot, projectRoot, output, assets, source }, config, WORKING_DIR };
 }
 
 /**
@@ -99,18 +100,25 @@ function initContext(overrideConfig?: Skrapa.Config): InitContext {
  * @param directory - the resolved roots and assets dir, none of which may sit
  *   inside the output dir
  * @param directory.skrapaRoot
+ * @param directory.source
  * @param directory.projectRoot
  * @param directory.assets
  */
 export function cleanOutput(
     output: string,
-    directory: { skrapaRoot: string; projectRoot: string; assets: string }
+    directory: { skrapaRoot: string; source: string; projectRoot: string; assets: string }
 ): void {
     // A wrong `output` turns this into an rm -rf of the source: `--output .`
     // would delete the very project being built. Refuse whenever the output dir
     // *is* or *contains* the skrapa root, the project root, the assets, or the
     // cwd.
-    const protectedDirs = [directory.skrapaRoot, directory.projectRoot, directory.assets, CWD_DIR]
+    const protectedDirs = [
+        directory.skrapaRoot,
+        directory.source,
+        directory.projectRoot,
+        directory.assets,
+        CWD_DIR,
+    ]
         .filter(Boolean)
         .map((dir) => path.resolve(dir));
 
@@ -136,8 +144,7 @@ export function cleanOutput(
         }
         return undefined;
     };
-    const page =
-        contains(directory.skrapaRoot, output) && fs.existsSync(output) && findPage(output);
+    const page = contains(directory.source, output) && fs.existsSync(output) && findPage(output);
     if (page) {
         log.error(
             `Error: refusing to clean the output dir ${path.relative(CWD_DIR, output)}; it holds the page ${path.relative(CWD_DIR, page)}. Pick an output dir that is not a page directory.`
@@ -294,7 +301,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
     // relative client `src` paths).
     const findTemplate = (pageDir: string): { html: string; file: string; dir: string } | null => {
         for (let d = pageDir; ; d = path.dirname(d) === '.' ? '' : path.dirname(d)) {
-            const p = path.join(directory.skrapaRoot, d, 'index.html');
+            const p = path.join(directory.source, d, 'index.html');
             if (fs.existsSync(p))
                 return {
                     html: fs.readFileSync(p, 'utf-8'),
@@ -316,12 +323,20 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
         fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
             const full = path.join(dir, entry.name);
             if (entry.isDirectory()) {
-                return isSkippedPath(directory.skrapaRoot, full, notSource) ? [] : findPages(full);
+                return isSkippedPath(directory.source, full, notSource) ? [] : findPages(full);
             }
             return entry.name === 'index.tsx' ? [full] : [];
         });
 
-    const pageFiles = findPages(directory.skrapaRoot).map((src) =>
+    // tsc's output mirrors the skrapa root, so the source dir's compiled twin
+    // sits at the same relative path under .skrapa. A page's URL and output
+    // path are relative to the source dir instead; the two are the same
+    // directory unless `source` is set.
+    const compiledSource = path.join(
+        compiledDir,
+        path.relative(directory.skrapaRoot, directory.source)
+    );
+    const pageFiles = findPages(directory.source).map((src) =>
         path.join(compiledDir, path.relative(directory.skrapaRoot, src)).replace(/\.tsx$/, '.js')
     );
 
@@ -347,7 +362,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
         if (typeof PageFn !== 'function') continue;
 
         // Page directory relative to the project: '' (home), 'about', 'a/b'.
-        const pageDir = path.relative(compiledDir, path.dirname(file));
+        const pageDir = path.relative(compiledSource, path.dirname(file));
 
         const result: Skrapa.Page = PageFn();
         // Returning markup directly is shorthand for `{ body: <that markup> }`.
@@ -367,7 +382,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
         // pass a page's `./style.css` would fall through and be looked for
         // beside the template instead of beside the page.
         const pagePosixDir = pageDir.split(path.sep).join('/');
-        const pageSource = path.join(directory.skrapaRoot, pageDir, 'index.tsx');
+        const pageSource = path.join(directory.source, pageDir, 'index.tsx');
         const bodyWithScripts = rewriteShellImports(body, pagePosixDir, dirs, pageSource);
 
         // Each page renders into its own index.html template (or the nearest
@@ -417,7 +432,7 @@ export function build(overrideConfig?: Skrapa.Config): InitContext {
 
     if (pageCount === 0) {
         log.error(
-            `Error: no pages found in ${path.relative(CWD_DIR, directory.skrapaRoot) || 'this directory'} (a page is a <dir>/index.tsx that exports \`Page\`).`
+            `Error: no pages found in ${path.relative(CWD_DIR, directory.source) || 'this directory'} (a page is a <dir>/index.tsx that exports \`Page\`).`
         );
         process.exit(1);
     }

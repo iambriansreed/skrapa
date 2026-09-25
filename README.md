@@ -120,10 +120,10 @@ In a terminal, `init` asks one question first: **Is this a new project?**
 
 - **New project** (the default answer, `--new`, or no terminal to ask in): the whole template goes into the current directory as it is. That directory is the project root, and the site is in `src/`. `package.json` gets `"dev": "cd src && npx skrapa dev"` and `"build": "cd src && npx skrapa build"`, and `.gitignore` gets `src/.skrapa`, `node_modules` and `dist`.
 - **Existing project** (answer `n`, or pass `--projectRoot <dir>`): `init` asks for the project root, suggesting the nearest directory at or above the current one that holds a `package.json` or `.git`. It has to be the current directory or one above it, and `init` asks again until it is. The current directory becomes the skrapa root and gets the site's own files: the template's pages, `assets/`, and a `tsconfig.json` whose key is `"skrapa": { "output": "dist", "assets": "assets", "port": 8080, "projectRoot": "<your answer>" }`, with that project root's `skrapa.d.ts` in its `include`. The build writes `dist/` there too, so nothing lands on the existing project's files. Only the project-level files go to the project root:
-  - `skrapa.d.ts`;
-  - `.github/workflows/skrapa-pages.yml`, which runs `npm run skrapa:build` and uploads the site's own `dist/` (left alone if the file already exists);
-  - `.gitignore` entries for the site's `.skrapa` and `dist`, plus `node_modules`;
-  - `skrapa:dev` and `skrapa:build` scripts in `package.json`, named so they cannot collide with the project's own `dev` and `build`.
+    - `skrapa.d.ts`;
+    - `.github/workflows/skrapa-pages.yml`, which runs `npm run skrapa:build` and uploads the site's own `dist/` (left alone if the file already exists);
+    - `.gitignore` entries for the site's `.skrapa` and `dist`, plus `node_modules`;
+    - `skrapa:dev` and `skrapa:build` scripts in `package.json`, named so they cannot collide with the project's own `dev` and `build`.
 
 Either way, `package.json` is created if there is none, and gets a script only where it has none by that name, plus `"engines": { "node": ">=24" }` if it names no Node version. `.gitignore` only gets the entries it does not already cover. An existing `tsconfig.json` is kept, with a warning listing what pages need from it, and given a `skrapa` key if it has none. Every other existing file is left alone unless you pass `--force`. Last, `init` starts the dev server from the skrapa root, unless you pass `--no-dev`.
 
@@ -164,15 +164,15 @@ npx skrapa fix                     # migrate a project written against an older 
 
 Per-command flags:
 
-| Command | Flags / args |
-| ------- | ------------ |
+| Command          | Flags / args                                                                                                                                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `init` (default) | `--new` (a new project, without asking), `--projectRoot <dir>` (add a site here to the existing project at `<dir>`; not with `--new`), `-f` / `--force` (overwrite existing files), `--no-dev` (skip the dev server) |
-| `dev` | `--port`, `--host`, `--origin`, `-v` / `--verbose`, plus the build flags |
-| `build` | `--output`, `--assets`, `--base`, `--linkCheckIgnore`, `--projectRoot` |
-| `page` | `<name>` and `[parent]` positionals, plus the config flags |
-| `fix` | `--output` (the dir to leave alone) |
+| `dev`            | `--port`, `--host`, `--origin`, `-v` / `--verbose`, plus the build flags                                                                                                                                             |
+| `build`          | `--output`, `--assets`, `--base`, `--linkCheckIgnore`, `--projectRoot`, `--source`                                                                                                                                   |
+| `page`           | `<name>` and `[parent]` positionals, plus the config flags                                                                                                                                                           |
+| `fix`            | `--output` (the dir to leave alone)                                                                                                                                                                                  |
 
-Every command except `init` runs in the skrapa root (which is why a new project's scripts `cd src` first) and accepts the [config](#configuration) flags (`--output`, `--assets`, `--port`, `--host`, `--origin`, `--base`, `--linkCheckIgnore`, `--projectRoot`), which override the `skrapa` key in `tsconfig.json`. Through an npm script, pass them after `--`: `npm run build -- --base /repo/`. A flag with nothing after it stops the command rather than being dropped. `--root` and `--input` are gone, and `--ignore` is `--linkCheckIgnore` now: pass an old flag and the command stops and says what replaced it.
+Every command except `init` runs in the skrapa root (which is why a new project's scripts `cd src` first) and accepts the [config](#configuration) flags (`--output`, `--assets`, `--port`, `--host`, `--origin`, `--base`, `--linkCheckIgnore`, `--projectRoot`, `--source`), which override the `skrapa` key in `tsconfig.json`. Through an npm script, pass them after `--`: `npm run build -- --base /repo/`. A flag with nothing after it stops the command rather than being dropped. `--root` and `--input` are gone, and `--ignore` is `--linkCheckIgnore` now: pass an old flag and the command stops and says what replaced it.
 
 `dev` watches the skrapa root (skipping the same directories the page search skips) and the assets dir, where a changed file is copied straight to the output and a deleted one is removed from it. When its port is busy, it names what holds the port and how to free it:
 
@@ -226,16 +226,17 @@ Every command stops before it does anything when the config has a problem, and l
 
 Paths are relative to the skrapa root.
 
-| Field         | Default     | Description                                                                                                                   |
-| ------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `output`      | `dist`      | Build output directory                                                                                                        |
-| `assets`      | `assets`    | Static files copied as-is to output; skipped if not present                                                                   |
-| `port`        | `8080`      | Dev server port                                                                                                               |
-| `host`        | `localhost` | Interface the dev server binds to. Use `0.0.0.0` to reach it from other devices on the network                                |
-| `origin`      | `""`        | Public URL when a proxy or tunnel fronts the dev server, e.g. `https://dev.localhost`. See [Behind a proxy](#behind-a-proxy)   |
-| `base`        | `/`         | Base URL the site is served from; injected as `<base href>`. Set to `/repo/` for GitHub Pages project sites                   |
-| `linkCheckIgnore` | `[]`    | URL paths the [link check](#every-reference-has-to-resolve) skips, for what the site serves but the build does not write, e.g. `["/api/**"]`. As a flag, comma-separated |
-| `projectRoot` | `.`         | The project root, where `package.json`, `.gitignore` and `.github/` live and every build writes `skrapa.d.ts`. `"../"` for a site in `src/` |
+| Field             | Default     | Description                                                                                                                                                              |
+| ----------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `output`          | `dist`      | Build output directory                                                                                                                                                   |
+| `assets`          | `assets`    | Static files copied as-is to output; skipped if not present                                                                                                              |
+| `port`            | `8080`      | Dev server port                                                                                                                                                          |
+| `host`            | `localhost` | Interface the dev server binds to. Use `0.0.0.0` to reach it from other devices on the network                                                                           |
+| `origin`          | `""`        | Public URL when a proxy or tunnel fronts the dev server, e.g. `https://dev.localhost`. See [Behind a proxy](#behind-a-proxy)                                             |
+| `base`            | `/`         | Base URL the site is served from; injected as `<base href>`. Set to `/repo/` for GitHub Pages project sites                                                              |
+| `linkCheckIgnore` | `[]`        | URL paths the [link check](#every-reference-has-to-resolve) skips, for what the site serves but the build does not write, e.g. `["/api/**"]`. As a flag, comma-separated |
+| `projectRoot`     | `.`         | The project root, where `package.json`, `.gitignore` and `.github/` live and every build writes `skrapa.d.ts`. `"../"` for a site in `src/`                              |
+| `source`          | `.`         | Where the pages live, when `tsconfig.json` sits in the project root instead: `"src"`. Set at most one of `source` and `projectRoot`                                      |
 
 Because the config is JSON, it cannot compute a value or read an env var. Pass a flag for anything that changes per environment. Flags override the `skrapa` key, which overrides the defaults:
 

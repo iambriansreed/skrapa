@@ -1,6 +1,6 @@
 {
     "name": "skrapa",
-    "version": "0.8.0",
+    "version": "0.8.1",
     "description": "Build static sites with TypeScript JSX templates and TypeScript client-side code. No framework, no virtual DOM, no config. A single zero-dependency script, run with npx.",
     "keywords": [
         "static-site-generator",

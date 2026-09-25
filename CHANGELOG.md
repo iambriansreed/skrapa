@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.8.1](https://github.com/iambriansreed/skrapa/compare/v0.8.0...v0.8.1) (2026-09-25)
+
+
+### Features
+
+* add a source config key for pages below tsconfig.json ([74fd8c6](https://github.com/iambriansreed/skrapa/commit/74fd8c6aaf89b6c69fdf0be82c9db488ea389ccd))
+
 ## [0.8.0](https://github.com/iambriansreed/skrapa/compare/v0.7.1...v0.8.0) (2026-09-14)
 
 
